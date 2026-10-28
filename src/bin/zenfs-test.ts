@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, globSync, mkdirSync, rmSync } from 'node:fs';
 import { join, parse, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs, styleText } from 'node:util';
 import type * as CI from '../ci.js';
 
@@ -97,7 +98,7 @@ if (options.clean) {
 
 function report(): void {
 	try {
-		execFileSync('npx', ['--silent', 'c8', 'report', '--reporter=text'], { stdio: 'inherit' });
+		execFileSync(process.execPath, [fileURLToPath(import.meta.resolve('c8/bin/c8.js')), 'report', '--reporter=text'], { stdio: 'inherit' });
 	} catch (e) {
 		console.error('Failed to generate coverage report!');
 		console.error(e);
