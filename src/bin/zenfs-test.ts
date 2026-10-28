@@ -248,7 +248,7 @@ if (options.common) {
 	});
 }
 
-const testsGlob = join(import.meta.dirname, `../../tests/fs/${options.test || '*'}.test.ts`);
+const testsGlob = join(import.meta.dirname, `../tests/fs/${options.test || '*'}.test.js`);
 
 for (const setupFile of positionals) {
 	if (!existsSync(setupFile)) {

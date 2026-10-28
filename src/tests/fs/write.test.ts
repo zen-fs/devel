@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path/posix';
 import { suite, test } from 'node:test';
-import { config, fs } from '@zenfs/devel/tests/common';
-import { data as dataPath } from '@zenfs/devel/tests/setup';
+import { config, fs } from '../common.js';
+import { data as dataPath } from '../setup.js';
 
 const fileName = 'write.txt';
 const utf8example = readFileSync(join(dataPath, 'utf8.txt'), 'utf8');

@@ -47,12 +47,12 @@
 	"scripts": {
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"spdx:check": "npx lice -a src tests/**/*.test.ts",
-		"spdx:fix": "npx lice -aw src tests/**/*.test.ts",
-		"lint": "eslint src tests",
+		"spdx:check": "npx lice -a src",
+		"spdx:fix": "npx lice -aw src",
+		"lint": "eslint src",
 		"build": "tsc --build",
 		"dev": "tsc --build --watch",
-		"test": "node dist/bin/zenfs-test.js tests/setup/memory.ts",
+		"test": "node dist/bin/zenfs-test.js dist/tests/setup/memory.js",
 		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {

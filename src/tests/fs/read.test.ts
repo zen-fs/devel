@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import type { OpenMode, PathLike } from 'node:fs';
 import { suite, test } from 'node:test';
 import { promisify } from 'node:util';
-import { config, fs } from '@zenfs/devel/tests/common';
+import { config, fs } from '../common.js';
 
 const filepath = 'x.txt';
 const expected = 'xyz\n';

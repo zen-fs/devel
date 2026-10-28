@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path/posix';
 import { suite, test } from 'node:test';
-import { config, fs } from '@zenfs/devel/tests/common';
+import { config, fs } from '../common.js';
 
 const testDir = 'test-dir';
 const testFiles = ['file1.txt', 'file2.txt', 'file3.txt'];

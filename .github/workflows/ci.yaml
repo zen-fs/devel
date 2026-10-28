@@ -40,7 +40,7 @@ jobs:
               run: npm run spdx:check
 
             - name: 'Unit tests: InMemory'
-              run: node dist/bin/zenfs-test.js -pv tests/setup/memory.ts
+              run: node dist/bin/zenfs-test.js -pv dist/tests/setup/memory.js
 
             - name: Report coverage
               run: node dist/bin/zenfs-test.js --report-only

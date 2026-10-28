@@ -7,7 +7,7 @@ import { setupLogs } from './logs.js';
 
 setupLogs();
 
-const setupPath = resolve(process.env.SETUP || join(import.meta.dirname, '../../tests/setup/memory.ts'));
+const setupPath = resolve(process.env.SETUP || join(import.meta.dirname, 'setup/memory.js'));
 
 process.on('unhandledRejection', (reason: Error) => {
 	console.error('Unhandled rejection:', styleText('red', reason.stack || reason.message));
