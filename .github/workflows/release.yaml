@@ -1,0 +1,12 @@
+name: Release
+on:
+    release:
+        types: [created]
+jobs:
+    ci:
+        name: CI Checks
+        uses: ./.github/workflows/ci.yaml
+    release:
+        name: Release
+        uses: ./.github/workflows/release-common.yaml
+        needs: ci

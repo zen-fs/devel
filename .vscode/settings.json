@@ -1,0 +1,10 @@
+{
+	"deno.enable": false,
+	"[yaml]": {
+		"editor.insertSpaces": true,
+		"editor.tabSize": 4
+	},
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.formatOnSave": true,
+	"cSpell.words": ["dcache", "EAGAIN", "EDEADLK", "inodes", "scandir", "rwsem", "unref", "vcache", "vnode", "vnodes"]
+}

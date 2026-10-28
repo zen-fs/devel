@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"allowJs": true,
+		"lib": ["ESNext"],
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"noEmit": true,
+		"resolveJsonModule": true,
+		"strict": true,
+		"target": "ES2022",
+		"verbatimModuleSyntax": true,
+		"types": ["node"]
+	},
+	"include": ["tests/**/*.ts", "tests/**/*.js"]
+}

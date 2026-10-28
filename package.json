@@ -1,0 +1,94 @@
+{
+	"name": "@zenfs/devel",
+	"version": "0.0.1",
+	"description": "Tooling for developing ZenFS packages",
+	"funding": {
+		"type": "individual",
+		"url": "https://github.com/sponsors/james-pre"
+	},
+	"keywords": [
+		"zenfs",
+		"filesystem",
+		"testing",
+		"eslint"
+	],
+	"bin": {
+		"make-index": "scripts/make-index.js",
+		"zenfs-test": "scripts/test.js",
+		"zci": "scripts/ci-cli.js"
+	},
+	"files": [
+		"scripts",
+		"tests",
+		"eslint.shared.js"
+	],
+	"type": "module",
+	"homepage": "https://github.com/zen-fs/devel",
+	"author": "James Prevett <jp@jamespre.dev> (https://jamespre.dev)",
+	"license": "LGPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/zen-fs/devel.git"
+	},
+	"bugs": {
+		"url": "https://github.com/zen-fs/devel/issues"
+	},
+	"engines": {
+		"node": ">= 22"
+	},
+	"exports": {
+		"./eslint": "./eslint.shared.js",
+		"./tests/*.ts": "./tests/*.ts",
+		"./tests/*": "./tests/*.js"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"scripts": {
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"spdx:check": "npx lice -a tests/*.ts tests/**/*.test.ts",
+		"spdx:fix": "npx lice -aw tests/*.ts tests/**/*.test.ts",
+		"lint": "eslint tests",
+		"test": "npx -s zenfs-test -n tests/setup/memory.ts"
+	},
+	"dependencies": {
+		"@eslint/js": "^10.0.1",
+		"@octokit/action": "^8.0.4",
+		"buffer": "^6.0.3",
+		"c8": "^12.0.0",
+		"globals": "^17.3.0",
+		"kerium": "^1.5.0",
+		"typescript-eslint": "^8.58.0",
+		"utilium": "^3.7.0"
+	},
+	"peerDependencies": {
+		"@zenfs/core": "^2.8.0",
+		"eslint": "^10.1.0",
+		"tsx": "^4.19.2"
+	},
+	"peerDependenciesMeta": {
+		"eslint": {
+			"optional": true
+		},
+		"tsx": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^26.0.0",
+		"@zenfs/core": "^2.8.0",
+		"eslint": "^10.1.0",
+		"prettier": "^3.2.5",
+		"typescript": "^6.0.0"
+	},
+	"prettier": {
+		"singleQuote": true,
+		"useTabs": true,
+		"tabWidth": 4,
+		"printWidth": 150,
+		"arrowParens": "avoid",
+		"experimentalOperatorPosition": "start"
+	}
+}
