@@ -4,9 +4,9 @@ import type { NodeFS } from '@zenfs/core/node/types';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-export const data = join(import.meta.dirname, 'data');
+export const data = join(import.meta.dirname, '../../tests/data');
 
-export const tmp = join(import.meta.dirname, 'tmp');
+export const tmp = join(import.meta.dirname, '../../tests/tmp');
 
 if (!existsSync(tmp)) mkdirSync(tmp, { recursive: true });
 

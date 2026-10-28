@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { constants as c, lstatSync, readdirSync, writeFileSync } from 'node:fs';
+// SPDX-License-Identifier: LGPL-3.0-or-later
+import { constants as c, lstatSync, readdirSync, writeFileSync, type Stats } from 'node:fs';
 import { join, matchesGlob, relative, resolve } from 'node:path/posix';
-import { parseArgs, styleText } from 'node:util';
+import { parseArgs, styleText, type InspectColor } from 'node:util';
 
 const { values: options, positionals } = parseArgs({
 	options: {
@@ -38,19 +39,15 @@ if (options.quiet && options.verbose) {
 	process.exit();
 }
 
-/**
- * @param {string} path
- */
-function fixSlash(path) {
+function fixSlash(path: string): string {
 	return path.replaceAll('\\', '/');
 }
 
 const resolvedRoot = root || '.';
 
-const entries = new Map();
+const entries = new Map<string, Stats>();
 
-/** @type {Record<string, import('node:util').InspectColor>} */
-const typeMap = {
+const typeMap: Record<string, InspectColor> = {
 	file: 'green',
 	' dir': 'blue',
 	' sym': 'cyan',
@@ -59,7 +56,7 @@ const typeMap = {
 	fifo: 'blue',
 };
 
-function getTypeText(/** @type {{ mode: number }} */ stats) {
+function getTypeText(stats: { mode: number }): string {
 	switch (stats.mode & c.S_IFMT) {
 		case c.S_IFBLK:
 		case c.S_IFCHR:
@@ -73,16 +70,13 @@ function getTypeText(/** @type {{ mode: number }} */ stats) {
 		case c.S_IFDIR:
 			return ' dir';
 		default:
-			throw `Unknown file type: 0o${(stats.mode & c.S_IFMT).toString(8)}`;
+			throw new Error(`Unknown file type: 0o${(stats.mode & c.S_IFMT).toString(8)}`);
 	}
 }
 
-const seenDevs = new Set();
+const seenDevs = new Set<number>();
 
-/**
- * @param {string} path
- */
-function computeEntries(path) {
+function computeEntries(path: string): void {
 	try {
 		if (options.ignore.some(pattern => matchesGlob(path, pattern))) {
 			if (!options.quiet) console.log(`${styleText('yellow', 'skip')} ${path}`);
@@ -110,7 +104,7 @@ function computeEntries(path) {
 		if (stats.isDirectory()) {
 			for (const file of readdirSync(path)) computeEntries(join(path, file));
 		}
-	} catch (/** @type {any} */ e) {
+	} catch (e) {
 		if (!options.quiet) {
 			console.log(`${styleText('red', 'fail')} ${path}: ${e instanceof Error ? e.message : String(e)}`);
 		}

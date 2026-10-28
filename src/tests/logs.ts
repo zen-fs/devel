@@ -1,14 +1,15 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 import { log } from 'kerium';
 
-export function setupLogs(prefix) {
+export function setupLogs(prefix?: string): void {
 	const { ZENFS_LOG_LEVEL } = process.env;
 
-	let level = log.Level.ERR;
+	let level: log.Level | (typeof log.levels)[number] = log.Level.ERR;
 
 	if (ZENFS_LOG_LEVEL) {
 		const tmp = parseInt(ZENFS_LOG_LEVEL);
 		if (Number.isSafeInteger(tmp)) level = tmp;
-		else level = ZENFS_LOG_LEVEL;
+		else level = ZENFS_LOG_LEVEL as (typeof log.levels)[number];
 	}
 
 	log.configure({

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// NOTE: Not compiled, use erasable TS only
+// SPDX-License-Identifier: LGPL-3.0-or-later
 import { execFileSync } from 'node:child_process';
 import { existsSync, globSync, mkdirSync, rmSync } from 'node:fs';
 import { join, parse, basename } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
+import type * as CI from '../ci.js';
 
 const { values: options, positionals } = parseArgs({
 	options: {
@@ -26,8 +27,6 @@ const { values: options, positionals } = parseArgs({
 		skip: { short: 's', type: 'string', multiple: true, default: [] },
 		'exit-on-fail': { short: 'e', type: 'boolean' },
 		runs: { short: 'r', type: 'string', default: '1' },
-		// @todo [breaking] make using node the default and remove tsx completely
-		node: { short: 'n', type: 'boolean', default: false },
 
 		// Coverage and performance
 		coverage: { type: 'string', default: 'tests/.coverage' },
@@ -41,10 +40,7 @@ const { values: options, positionals } = parseArgs({
 	allowPositionals: true,
 });
 
-/**
- * @param  {...any} args
- */
-function debug(...args) {
+function debug(...args: unknown[]): void {
 	if (options.debug || process.env.DEBUG)
 		console.debug(styleText('dim', '[debug]'), ...args.map(a => (typeof a === 'string' ? styleText('dim', a) : a)));
 }
@@ -65,7 +61,6 @@ Behavior:
     -I, --inspect         Use the inspector for debugging
     -s, --skip <pattern>  Skip tests with names matching the given pattern. Can be specified multiple times.
     -d, --debug           Output debug messages from the test runner
-    -n, --node            Use plain node instead of tsx. Requires use of erasable TS syntax only
 
 Output:
     -h, --help            Outputs this help message
@@ -100,7 +95,7 @@ if (options.clean) {
 	process.exit();
 }
 
-function report() {
+function report(): void {
 	try {
 		execFileSync('npx', ['--silent', 'c8', 'report', '--reporter=text'], { stdio: 'inherit' });
 	} catch (e) {
@@ -116,23 +111,21 @@ if (options['report-only']) {
 	process.exit();
 }
 
-const nRuns = Number.isSafeInteger(parseInt(options.runs)) ? parseInt(options.runs) : 1,
-	nodeCommand = options.node ? 'node' : 'tsx';
+const nRuns = Number.isSafeInteger(parseInt(options.runs)) ? parseInt(options.runs) : 1;
 
-/** @type {typeof import('./ci.js')} */
-let ci;
+let ci: typeof CI | undefined;
 if (options.ci) {
 	if (options.runs && nRuns !== 1) {
 		console.error('Cannot use --ci with --runs');
 		process.exit(1);
 	}
-	ci = await import('./ci.js');
+	ci = await import('../ci.js');
 }
 
-options.verbose && options.force && console.debug('Forcing tests to exit (--test-force-exit)');
+if (options.verbose && options.force) console.debug('Forcing tests to exit (--test-force-exit)');
 
 if (options.build) {
-	!options.quiet && process.stdout.write('Building... ');
+	if (!options.quiet) process.stdout.write('Building... ');
 	try {
 		execFileSync('npm', ['run', 'build', '--silent'], { stdio: 'inherit' });
 		console.log('done.');
@@ -145,12 +138,12 @@ if (options.auto) {
 	let sum = 0;
 
 	for (const pattern of ['**/tests/setup/*.ts', '**/tests/setup-*.ts']) {
-		const files = await globSync(pattern).filter(f => !f.includes('node_modules'));
+		const files = globSync(pattern).filter(f => !f.includes('node_modules'));
 		sum += files.length;
 		positionals.push(...files);
 	}
 
-	!options.quiet && console.log(`Auto-detected ${sum} test setup files`);
+	if (!options.quiet) console.log(`Auto-detected ${sum} test setup files`);
 }
 
 if (!options.preserve) rmSync(options.coverage, { force: true, recursive: true });
@@ -158,11 +151,8 @@ mkdirSync(options.coverage, { recursive: true });
 
 /**
  * Generate the command used to run the tests
- * @param {string} profileName
- * @param {...string} rest
- * @returns {string[]}
  */
-function makeCommand(profileName, ...rest) {
+function makeCommand(profileName: string, ...rest: string[]): string[] {
 	const command = [
 		'--trace-deprecation',
 		options.inspect && '--inspect',
@@ -174,18 +164,16 @@ function makeCommand(profileName, ...rest) {
 			? []
 			: ['--cpu-prof', '--cpu-prof-dir=.profiles', `--cpu-prof-name=${profileName}.cpuprofile`, '--cpu-prof-interval=500']),
 		...rest,
-	]
-		.filter(v => v)
-		.filter(v => typeof v == 'string');
-	if (!options.quiet) debug('command: ' + nodeCommand, command.join(' '));
+	].filter((value): value is string => typeof value == 'string' && !!value);
+	if (!options.quiet) debug('command: ' + process.execPath, command.join(' '));
 
 	return command;
 }
 
 /**
- * @param {number} ms
+ * @param ms milliseconds
  */
-function duration(ms) {
+function duration(ms: number): string {
 	ms = Math.round(ms);
 	let unit = 'ms';
 
@@ -197,18 +185,14 @@ function duration(ms) {
 	return ms + ' ' + unit;
 }
 
-/**
- * @typedef {object} RunTestOptions
- * @property {string} name
- * @property {string[]} args
- * @property {string} [statusName]
- * @property {() => boolean} [shouldSkip]
- */
+interface RunTestOptions {
+	name: string;
+	args: string[];
+	statusName?: string;
+	shouldSkip?(): boolean;
+}
 
-/**
- * @param {RunTestOptions} config
- */
-async function runTests(config) {
+async function runTests(config: RunTestOptions): Promise<void> {
 	const statusName = config.statusName || config.name;
 
 	const command = makeCommand(config.name, ...config.args);
@@ -217,7 +201,7 @@ async function runTests(config) {
 	for (let i = 0; i < nRuns; i++) {
 		const start = performance.now();
 
-		if (options.ci) await ci.startCheck(statusName);
+		await ci?.startCheck(statusName);
 
 		const time = () => styleText('dim', `(${duration(Math.round(performance.now() - start))})`);
 
@@ -232,20 +216,20 @@ async function runTests(config) {
 
 		if (config.shouldSkip?.()) {
 			if (!options.quiet) console.log(`${styleText('yellow', 'skipped')}${identText} ${time()}`);
-			if (options.ci) await ci.completeCheck(statusName, 'skipped');
+			await ci?.completeCheck(statusName, 'skipped');
 			return;
 		}
 
 		try {
-			execFileSync(nodeCommand, command, {
+			execFileSync(process.execPath, command, {
 				stdio: ['ignore', options.verbose ? 'inherit' : 'ignore', 'inherit'],
 			});
 			if (!options.quiet) console.log(`${styleText('green', 'passed')}${identText} ${time()}`);
-			if (options.ci) await ci.completeCheck(statusName, 'success');
+			await ci?.completeCheck(statusName, 'success');
 			totalTime += performance.now() - start;
 		} catch {
 			console.error(`${styleText(['red', 'bold'], 'failed')}${identText} ${time()}`);
-			if (options.ci) await ci.completeCheck(statusName, 'failure');
+			await ci?.completeCheck(statusName, 'failure');
 			process.exitCode = 1;
 			if (options['exit-on-fail']) process.exit();
 			return;
@@ -264,11 +248,11 @@ if (options.common) {
 	});
 }
 
-const testsGlob = join(import.meta.dirname, `../tests/fs/${options.test || '*'}.test.ts`);
+const testsGlob = join(import.meta.dirname, `../../tests/fs/${options.test || '*'}.test.ts`);
 
 for (const setupFile of positionals) {
 	if (!existsSync(setupFile)) {
-		!options.quiet && console.warn('Skipping tests for non-existent setup file:', setupFile);
+		if (!options.quiet) console.warn('Skipping tests for non-existent setup file:', setupFile);
 		continue;
 	}
 

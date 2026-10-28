@@ -30,6 +30,9 @@ jobs:
             - name: Formatting
               run: npm run format:check
 
+            - name: Build
+              run: npm run build
+
             - name: Linting
               run: npm run lint
 
@@ -37,7 +40,7 @@ jobs:
               run: npm run spdx:check
 
             - name: 'Unit tests: InMemory'
-              run: npx zenfs-test -pvn tests/setup/memory.ts
+              run: node dist/bin/zenfs-test.js -pv tests/setup/memory.ts
 
             - name: Report coverage
-              run: npx zenfs-test --report-only
+              run: node dist/bin/zenfs-test.js --report-only

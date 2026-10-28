@@ -13,12 +13,12 @@
 		"eslint"
 	],
 	"bin": {
-		"make-index": "scripts/make-index.js",
-		"zenfs-test": "scripts/test.js",
-		"zci": "scripts/ci-cli.js"
+		"make-index": "dist/bin/make-index.js",
+		"zenfs-test": "dist/bin/zenfs-test.js",
+		"zci": "dist/bin/zci.js"
 	},
 	"files": [
-		"scripts",
+		"dist",
 		"tests",
 		"eslint.shared.js"
 	],
@@ -38,8 +38,7 @@
 	},
 	"exports": {
 		"./eslint": "./eslint.shared.js",
-		"./tests/*.ts": "./tests/*.ts",
-		"./tests/*": "./tests/*.js"
+		"./*": "./dist/*.js"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -48,10 +47,13 @@
 	"scripts": {
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"spdx:check": "npx lice -a tests/*.ts tests/**/*.test.ts",
-		"spdx:fix": "npx lice -aw tests/*.ts tests/**/*.test.ts",
-		"lint": "eslint tests",
-		"test": "npx -s zenfs-test -n tests/setup/memory.ts"
+		"spdx:check": "npx lice -a src tests/**/*.test.ts",
+		"spdx:fix": "npx lice -aw src tests/**/*.test.ts",
+		"lint": "eslint src tests",
+		"build": "tsc --build",
+		"dev": "tsc --build --watch",
+		"test": "node dist/bin/zenfs-test.js tests/setup/memory.ts",
+		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {
 		"@eslint/js": "^10.0.1",
@@ -65,14 +67,10 @@
 	},
 	"peerDependencies": {
 		"@zenfs/core": "^2.8.0",
-		"eslint": "^10.1.0",
-		"tsx": "^4.19.2"
+		"eslint": "^10.1.0"
 	},
 	"peerDependenciesMeta": {
 		"eslint": {
-			"optional": true
-		},
-		"tsx": {
 			"optional": true
 		}
 	},

@@ -2,7 +2,7 @@
 import type { Stats } from '@zenfs/core';
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { config, fs } from '../common.ts';
+import { config, fs } from '@zenfs/devel/tests/common';
 
 const testDir = '/test-watch-dir';
 const testFile = testDir + '/test.txt';

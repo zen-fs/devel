@@ -4,7 +4,7 @@ import shared from './eslint.shared.js';
 export default defineConfig(
 	...shared,
 	{
-		files: ['tests/**/*.ts'],
+		files: ['src/**/*.ts', 'tests/**/*.ts'],
 		name: 'Enable typed checking',
 		languageOptions: {
 			parserOptions: {

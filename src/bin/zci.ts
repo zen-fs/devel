@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: LGPL-3.0-or-later
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
-import * as ci from './ci.js';
+import * as ci from '../ci.js';
 
 const {
 	values: options,
@@ -46,6 +47,7 @@ switch (subcommand) {
 		await ci.completeCheck(name, status ? 'failure' : 'success');
 
 		process.exit(status);
+		break;
 	}
 	case 'cleanup': {
 		for (const id of Object.keys(ci.checkNames)) {

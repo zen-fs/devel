@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 import { Octokit } from '@octokit/action';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path/posix';
@@ -11,13 +12,15 @@ const head_sha = process.env.GITHUB_SHA || _throw('GITHUB_SHA is not set');
 
 mkdirSync(join(import.meta.dirname, '../tmp'), { recursive: true });
 
-/**
- * @type {JSONFileMap<{id: number, completed: boolean}>}
- */
-const checks = new JSONFileMap(join(import.meta.dirname, '../tmp/checks.json'), { overwrite_invalid: true });
+type Check = {
+	id: number;
+	completed: boolean;
+};
+
+const checks = new JSONFileMap<Check>(join(import.meta.dirname, '../tmp/checks.json'), { overwrite_invalid: true });
 
 /** Maps test names and shortcuts to full check names */
-export const checkNames = {
+export const checkNames: Record<string, string> = {
 	// Basic ones
 	format: 'Formatting',
 	lint: 'Linting',
@@ -34,12 +37,12 @@ export const checkNames = {
 	'single-buffer': 'Unit tests: SingleBuffer',
 };
 
+export type Conclusion = 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required' | 'skipped';
+
 /**
  * Create a new GitHub check run
- * @param {string} id
- * @param {string} name
  */
-export async function createCheck(id, name) {
+export async function createCheck(id: string, name: string): Promise<void> {
 	const response = await octokit.request('POST /repos/{owner}/{repo}/check-runs', {
 		owner,
 		repo,
@@ -54,9 +57,8 @@ export async function createCheck(id, name) {
 
 /**
  * Move an existing check run from "queued" to "in_progress".
- * @param {string} id
  */
-export async function startCheck(id) {
+export async function startCheck(id: string): Promise<void> {
 	const check = checks.get(id);
 
 	await octokit.request('PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}', {
@@ -70,12 +72,8 @@ export async function startCheck(id) {
 
 /**
  * Complete a check run
- * @param {string} id
- * @param {'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required' | 'skipped'} conclusion
- * @param {string} title
- * @param {string} summary
  */
-export async function completeCheck(id, conclusion, title = '', summary = '') {
+export async function completeCheck(id: string, conclusion: Conclusion, title: string = '', summary: string = ''): Promise<void> {
 	const check = checks.get(id);
 	if (check.completed) return;
 
