@@ -1,6 +1,6 @@
 {
 	"name": "@zenfs/devel",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "Tooling for developing ZenFS packages",
 	"funding": {
 		"type": "individual",
