@@ -23,7 +23,7 @@ export interface MakeIndexOptions {
 	onIgnore?(path: string): void;
 }
 
-const supportedTypes = new Set([c.S_IFBLK, c.S_IFCHR, c.S_IFIFO, c.S_IFSOCK, c.S_IFREG, c.S_IFDIR]);
+const supportedTypes = new Set([c.S_IFBLK, c.S_IFCHR, c.S_IFIFO, c.S_IFSOCK, c.S_IFREG, c.S_IFDIR, c.S_IFLNK]);
 
 /**
  * Creates an index of the host file system at `root`, for use with backends like `Fetch`

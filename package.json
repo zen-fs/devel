@@ -38,6 +38,7 @@
 	},
 	"exports": {
 		"./eslint": "./eslint.shared.js",
+		".": "./dist/index.js",
 		"./*": "./dist/*.js"
 	},
 	"publishConfig": {

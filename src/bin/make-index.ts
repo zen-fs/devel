@@ -66,6 +66,8 @@ function getTypeText(stats: { mode: number }): string {
 			return 'file';
 		case c.S_IFDIR:
 			return ' dir';
+		case c.S_IFLNK:
+			return ' sym';
 		default:
 			throw new Error(`Unknown file type: 0o${(stats.mode & c.S_IFMT).toString(8)}`);
 	}
