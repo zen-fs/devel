@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import { constants as c, lstatSync, readdirSync, writeFileSync, type Stats } from 'node:fs';
-import { join, matchesGlob, relative, resolve } from 'node:path/posix';
+import { constants as c, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path/posix';
 import { parseArgs, styleText, type InspectColor } from 'node:util';
+import makeIndex from '../make_index.js';
 
 const { values: options, positionals } = parseArgs({
 	options: {
@@ -43,10 +44,6 @@ function fixSlash(path: string): string {
 	return path.replaceAll('\\', '/');
 }
 
-const resolvedRoot = root || '.';
-
-const entries = new Map<string, Stats>();
-
 const typeMap: Record<string, InspectColor> = {
 	file: 'green',
 	' dir': 'blue',
@@ -74,51 +71,27 @@ function getTypeText(stats: { mode: number }): string {
 	}
 }
 
-const seenDevs = new Set<number>();
-
-function computeEntries(path: string): void {
-	try {
-		if (options.ignore.some(pattern => matchesGlob(path, pattern))) {
-			if (!options.quiet) console.log(`${styleText('yellow', 'skip')} ${path}`);
-			return;
-		}
-
-		const stats = lstatSync(path);
-		if (!seenDevs.size) seenDevs.add(stats.dev);
-		else if (!seenDevs.has(stats.dev))
-			if (options.xdev) {
-				console.warn(
-					`${styleText('yellowBright', `--xdev: Adding entries from device ${stats.dev} (${path}). You may get duplicate inos which MUST be de-duplicated manually.`)}`,
-				);
-				seenDevs.add(stats.dev);
-			} else {
-				console.warn(`${styleText('yellowBright', `Ignoring ${path} because it crosses a device boundary`)}`);
-				return;
-			}
-
+const index = makeIndex(root, {
+	ignore: options.ignore,
+	xdev: options.xdev,
+	onWarning(message) {
+		console.warn(styleText('yellowBright', message));
+	},
+	onError(path, error) {
+		if (!options.quiet) console.log(`${styleText('red', 'fail')} ${path}: ${error.message}`);
+	},
+	onEntry(path, stats) {
+		if (!options.verbose) return;
 		const type = getTypeText(stats);
+		console.log(`${styleText(typeMap[type] || 'white', type)} ${path}`);
+	},
+	onIgnore(path) {
+		if (!options.quiet) console.log(`${styleText('yellow', 'skip')} ${path}`);
+	},
+});
 
-		entries.set('/' + relative(resolvedRoot, path), stats);
-		if (options.verbose) console.log(`${styleText(typeMap[type] || 'white', type)} ${path}`);
-
-		if (stats.isDirectory()) {
-			for (const file of readdirSync(path)) computeEntries(join(path, file));
-		}
-	} catch (e) {
-		if (!options.quiet) {
-			console.log(`${styleText('red', 'fail')} ${path}: ${e instanceof Error ? e.message : String(e)}`);
-		}
-	}
-}
-
-computeEntries(resolvedRoot);
 if (!options.quiet) {
 	console.log('Generated listing for ' + fixSlash(resolve(root)));
 }
-
-const index = {
-	version: 1,
-	entries: Object.fromEntries(entries),
-};
 
 writeFileSync(options.output, JSON.stringify(index));
