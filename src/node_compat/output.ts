@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import { InvalidArgumentError } from 'commander';
 import { homedir } from 'node:os';
 import { relative } from 'node:path';
 import { stripVTControlCharacters, styleText, type InspectColor } from 'node:util';
@@ -6,37 +7,10 @@ import type { PRStatus, Status } from './analysis.js';
 import type { PR } from './pr.js';
 import type { MarkEntry } from './state.js';
 
-export function fail(message: string): never {
-	console.error(styleText('red', 'error:'), message);
-	process.exit(1);
-}
-
 export function displayPath(path: string): string {
 	const fromCwd = relative(process.cwd(), path);
 	if (!fromCwd.startsWith('..')) return fromCwd || '.';
 	return path.startsWith(homedir()) ? '~' + path.slice(homedir().length) : path;
-}
-
-/**
- * Flattens repeated and comma-separated option values.
- */
-export function list(values: string[] | undefined): string[] | undefined {
-	return values
-		?.flatMap(value => value.split(','))
-		.map(value => value.trim())
-		.filter(Boolean);
-}
-
-/**
- * Compiles a case-insensitive pattern, exiting if it is invalid.
- */
-export function regex(source: string | undefined): RegExp | undefined {
-	if (!source) return;
-	try {
-		return new RegExp(source, 'i');
-	} catch {
-		fail(`Invalid regular expression: ${source}`);
-	}
 }
 
 export const statusStyles: Record<Status, InspectColor> = { pending: 'yellow', auto: 'cyan', resolved: 'green', ignored: 'gray' };
@@ -44,13 +18,42 @@ export const statusStyles: Record<Status, InspectColor> = { pending: 'yellow', a
 export const semverStyles: Record<PR['semver'], InspectColor> = { major: 'red', minor: 'magenta', patch: 'dim', unreleased: 'blue' };
 
 /**
- * Exits unless every value is a key of `styles`.
+ * Creates an option parser for repeated, comma-separated values, optionally restricted to `choices`.
  */
-export function keysOf<const K extends string>(values: string[] | undefined, styles: Record<K, InspectColor>, label: string): K[] | undefined {
-	for (const value of values ?? []) {
-		if (!Object.hasOwn(styles, value)) fail(`Unknown ${label} "${value}" (expected ${Object.keys(styles).join(', ')})`);
+export function parseList<const T extends string = string>(choices?: readonly T[]) {
+	return (value: string, previous: T[] | undefined): T[] => {
+		const values = value
+			.split(',')
+			.map(item => item.trim())
+			.filter(Boolean);
+		for (const item of values) {
+			if (choices && !choices.includes(item as T)) throw new InvalidArgumentError(`Expected ${choices.join(', ')}.`);
+		}
+		return [...(previous ?? []), ...(values as T[])];
+	};
+}
+
+export function parseIntegers(value: string, previous: number[] | undefined): number[] {
+	const numbers = parseList()(value, undefined).map(Number);
+	if (numbers.some(number => !Number.isSafeInteger(number))) throw new InvalidArgumentError('Expected integers.');
+	return [...(previous ?? []), ...numbers];
+}
+
+export function parsePositiveInteger(value: string): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 1) throw new InvalidArgumentError('Expected a positive integer.');
+	return number;
+}
+
+/**
+ * Compiles a case-insensitive pattern.
+ */
+export function parseRegex(source: string): RegExp {
+	try {
+		return new RegExp(source, 'i');
+	} catch {
+		throw new InvalidArgumentError('Invalid regular expression.');
 	}
-	return values as K[] | undefined;
 }
 
 /**
