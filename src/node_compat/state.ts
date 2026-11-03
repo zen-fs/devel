@@ -21,7 +21,7 @@ export const defaultMarksPath = '.node-compat.json';
  * Opens a marks file, creating it if needed.
  */
 export function openMarks(path: string = defaultMarksPath): JSONFileMap<MarkEntry> {
-	return new JSONFileMap<MarkEntry>(path, { overwrite_invalid: false });
+	return new JSONFileMap<MarkEntry>(path, { overwrite_invalid: false, pretty: true });
 }
 
 export function createMark(status: Mark, note?: string): MarkEntry {
