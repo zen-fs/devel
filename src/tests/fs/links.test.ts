@@ -28,6 +28,20 @@ suite('Links', config('symlinks'), () => {
 		fs.unlinkSync('symlink-sync.js');
 	});
 
+	test('symlink type may be null', async () => {
+		fs.symlinkSync(target, 'symlink-null-sync.js', null);
+		assert(fs.lstatSync('symlink-null-sync.js').isSymbolicLink());
+		fs.unlinkSync('symlink-null-sync.js');
+
+		await fs.promises.symlink(target, 'symlink-null.js', null);
+		assert((await fs.promises.lstat('symlink-null.js')).isSymbolicLink());
+		await fs.promises.unlink('symlink-null.js');
+	});
+
+	test('symlink rejects invalid types', () => {
+		assert.throws(() => fs.symlinkSync(target, 'symlink-invalid.js', 'bogus' as any), TypeError);
+	});
+
 	test('lstat file inside symlinked directory #241', async () => {
 		await fs.promises.mkdir('/a');
 		await fs.promises.writeFile('/a/hello.txt', 'hello world');

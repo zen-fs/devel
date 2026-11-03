@@ -70,6 +70,71 @@ suite('read', () => {
 		assert.equal(bytesRead, expected.length);
 	});
 
+	test('fractional read lengths are truncated asynchronously', config('async'), async () => {
+		await using handle = await fs.promises.open(filepath, 'r');
+		const { bytesRead } = await handle.read(Buffer.alloc(expected.length), 0, 2.7, 0);
+		assert.equal(bytesRead, 2);
+	});
+
+	test('fractional read lengths are truncated synchronously', config('sync'), () => {
+		const fd = fs.openSync(filepath, 'r');
+		assert.equal(fs.readSync(fd, Buffer.alloc(expected.length), 0, 2.7, 0), 2);
+		fs.closeSync(fd);
+	});
+
+	test('read with an options object and a callback', config('async'), async () => {
+		const fd = fs.openSync(filepath, 'r');
+		const read = (...args: unknown[]) => {
+			const { promise, resolve, reject } = Promise.withResolvers<[number, Buffer]>();
+			(fs.read as (...args: unknown[]) => void)(fd, ...args, (error: Error | null, bytesRead: number, buffer: Buffer) =>
+				error ? reject(error) : resolve([bytesRead, buffer]),
+			);
+			return promise;
+		};
+
+		const [bytesRead, buffer] = await read(Buffer.alloc(expected.length), { length: 2, position: 0 });
+		assert.equal(bytesRead, 2);
+		assert.equal(buffer.subarray(0, 2).toString(), expected.slice(0, 2));
+
+		const target = Buffer.alloc(expected.length);
+		const [bytesReadWithBuffer, bufferFromOptions] = await read({ buffer: target, position: 0 });
+		assert.equal(bytesReadWithBuffer, expected.length);
+		assert.equal(bufferFromOptions, target);
+		assert.equal(target.toString(), expected);
+
+		fs.closeSync(fd);
+	});
+
+	test('positional reads do not move the file position', config('sync'), async () => {
+		const fd = fs.openSync(filepath, 'r');
+		const buffer = Buffer.alloc(1);
+		fs.readSync(fd, buffer, 0, 1, null);
+		fs.readSync(fd, buffer, 0, 1, 3);
+		fs.readSync(fd, buffer, 0, 1, null);
+		assert.equal(buffer.toString(), expected[1]);
+		fs.closeSync(fd);
+
+		await using handle = await fs.promises.open(filepath, 'r');
+		await handle.read(buffer, 0, 1, null);
+		await handle.read(buffer, 0, 1, 3);
+		await handle.read(buffer, 0, 1, null);
+		assert.equal(buffer.toString(), expected[1]);
+	});
+
+	test('readv reads at the current position', config('sync'), async () => {
+		const fd = fs.openSync(filepath, 'r');
+		const [first, second] = [Buffer.alloc(1), Buffer.alloc(2)];
+		assert.equal(fs.readvSync(fd, [first]), 1);
+		assert.equal(fs.readvSync(fd, [second]), 2);
+		assert.equal(first.toString() + second.toString(), expected.slice(0, 3));
+		fs.closeSync(fd);
+
+		await using handle = await fs.promises.open(filepath, 'r');
+		await handle.readv([first], 2);
+		await handle.readv([second]);
+		assert.equal(first.toString() + second.toString(), expected[2] + expected.slice(0, 2));
+	});
+
 	test('read using callback API #239', config('sync', 'write'), async () => {
 		const path = '/text.txt';
 

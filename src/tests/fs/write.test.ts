@@ -115,4 +115,95 @@ suite('Writes', config('write'), () => {
 
 		fs.unlinkSync(file);
 	});
+
+	test('writeSync with an options object', config('sync'), () => {
+		const file = 'write-options-sync.txt';
+		const fd = fs.openSync(file, 'w+');
+		assert.equal(fs.writeSync(fd, Buffer.from('abcdef'), { offset: 1, length: 2 }), 2);
+		assert.equal(fs.writeSync(fd, Buffer.from('xyz')), 3);
+		fs.closeSync(fd);
+		assert.equal(fs.readFileSync(file, 'utf8'), 'bcxyz');
+		fs.unlinkSync(file);
+	});
+
+	test('write with an options object', config('async'), async () => {
+		const file = 'write-options.txt';
+		const fd = fs.openSync(file, 'w+');
+		const buffer = Buffer.from('abcdef');
+		const { promise, resolve, reject } = Promise.withResolvers<[number, Buffer]>();
+		fs.write(fd, buffer, { offset: 1, length: 2, position: 0 }, (error, written, result) =>
+			error ? reject(error) : resolve([written!, result as Buffer]),
+		);
+		const [written, result] = await promise;
+		assert.equal(written, 2);
+		assert.equal(result, buffer);
+		fs.closeSync(fd);
+		assert.equal(fs.readFileSync(file, 'utf8'), 'bc');
+		fs.unlinkSync(file);
+	});
+
+	test('Positional writes do not move the file position', config('sync'), async () => {
+		const file = 'write-positional.txt';
+		const fd = fs.openSync(file, 'w+');
+		fs.writeSync(fd, 'abc');
+		fs.writeSync(fd, 'X', 0);
+		fs.writeSync(fd, 'def');
+		assert.equal(fs.readFileSync(file, 'utf8'), 'Xbcdef');
+
+		await using handle = await fs.promises.open(file, 'r+');
+		await handle.write('1');
+		await handle.write('Y', 4);
+		await handle.write('2');
+		assert.equal(fs.readFileSync(file, 'utf8'), '12cdYf');
+
+		fs.closeSync(fd);
+		fs.unlinkSync(file);
+	});
+
+	test('writevSync writes at the current position and respects views', config('sync'), () => {
+		const file = 'write-vectored.txt';
+		const fd = fs.openSync(file, 'w+');
+		const bytes = Buffer.from('xxabcxx');
+		assert.equal(fs.writevSync(fd, [bytes.subarray(2, 5), Buffer.from('de')]), 5);
+		assert.equal(fs.writevSync(fd, [Buffer.from('f')]), 1);
+		assert.equal(fs.writevSync(fd, [Buffer.from('A')], 0), 1);
+		assert.equal(fs.writevSync(fd, [Buffer.from('g')]), 1);
+		fs.closeSync(fd);
+		assert.equal(fs.readFileSync(file, 'utf8'), 'Abcdefg');
+		fs.unlinkSync(file);
+	});
+
+	test('Objects are not coerced to strings', async () => {
+		const object = { toString: () => 'x' } as any;
+		const error = { name: 'TypeError', code: 'ERR_INVALID_ARG_TYPE' };
+		const file = 'write-coercion.txt';
+
+		assert.throws(() => fs.writeFileSync(file, object), error);
+		assert.throws(() => fs.appendFileSync(file, object), error);
+		await assert.rejects(fs.promises.writeFile(file, object), error);
+		await assert.rejects(fs.promises.appendFile(file, object), error);
+
+		await using handle = await fs.promises.open(file, 'a+');
+		await assert.rejects(handle.write(object), error);
+		await assert.rejects(handle.writeFile(object), error);
+		await assert.rejects(handle.appendFile(object), error);
+		assert.throws(() => fs.writeSync(handle.fd, object), error);
+		assert.throws(() => fs.write(handle.fd, object, () => {}), error);
+
+		assert.equal(fs.readFileSync(file, 'utf8'), '');
+		fs.unlinkSync(file);
+	});
+
+	test('Non-byte views are written by byte length', async () => {
+		const file = 'write-view.txt';
+		const view = new Uint16Array([0x6261, 0x6463]);
+
+		fs.writeFileSync(file, view);
+		assert.equal(fs.readFileSync(file, 'latin1'), 'abcd');
+
+		await fs.promises.writeFile(file, new DataView(view.buffer));
+		assert.equal(fs.readFileSync(file, 'latin1'), 'abcd');
+
+		fs.unlinkSync(file);
+	});
 });

@@ -83,6 +83,20 @@ suite('Dir', config('directories'), () => {
 		await assert.rejects(dir.read());
 	});
 
+	test('read with a callback', config('async'), async () => {
+		const dir = fs.opendirSync(testDirPath);
+		const { promise, resolve, reject } = Promise.withResolvers<Dirent | null | undefined>();
+		dir.read((error, dirent) => (error ? reject(error) : resolve(dirent)));
+		assert(testFiles.includes((await promise)!.name));
+		await dir.close();
+	});
+
+	test('read with a callback after directory is closed', config('async'), async () => {
+		const dir = fs.opendirSync(testDirPath);
+		await dir.close();
+		assert.throws(() => dir.read(() => {}), { code: 'ERR_DIR_CLOSED' });
+	});
+
 	test('readSync after directory is closed', config('sync'), () => {
 		const dir = fs.opendirSync(testDirPath);
 		dir.closeSync();

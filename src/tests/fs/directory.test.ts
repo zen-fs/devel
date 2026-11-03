@@ -168,6 +168,21 @@ suite('Directories', config('directories'), () => {
 		assert.deepEqual(values[8], ['/' + testDir + '/subdir2', 'file5.txt']);
 	});
 
+	test('readdir is not affected by mutating options after the call', config('async'), async () => {
+		const options = { recursive: true, withFileTypes: false as boolean };
+		const promise = fs.promises.readdir(testDir, options as { recursive: boolean; withFileTypes?: false });
+		options.recursive = false;
+		options.withFileTypes = true;
+		const entries: unknown[] = await promise;
+		assert(entries.includes('subdir1/file4.txt'));
+		assert(entries.every(entry => typeof entry == 'string'));
+	});
+
+	test('Dirent does not have path', config('sync'), () => {
+		const [entry] = fs.readdirSync(testDir, { withFileTypes: true });
+		assert(!('path' in entry));
+	});
+
 	test('readdirSync returns files recursively', config('sync'), () => {
 		const entries = fs.readdirSync(testDir, { recursive: true }).sort();
 		assert.equal(entries[0], 'file1.txt');

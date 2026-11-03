@@ -22,6 +22,14 @@ suite('Truncating', config('truncate'), () => {
 		assert.equal(fs.statSync(path).size, size);
 	});
 
+	test('Path functions reject file descriptors', config('sync'), async () => {
+		const fd = fs.openSync(path, 'r+');
+		const error = { name: 'TypeError', code: 'ERR_INVALID_ARG_TYPE' };
+		assert.throws(() => fs.truncateSync(fd as any, 1), error);
+		await assert.rejects(fs.promises.truncate(fd as any, 1), error);
+		fs.closeSync(fd);
+	});
+
 	test('FD functions', config('sync'), () => {
 		const fd = fs.openSync(path, 'r+');
 

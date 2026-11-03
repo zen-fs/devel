@@ -227,6 +227,25 @@ suite('Watch', config('watch'), () => {
 		}
 	});
 
+	test('Non-recursive watchers ignore nested files', async () => {
+		const subDir = `${testDir}/non-recursive`;
+		await fs.promises.mkdir(subDir);
+		await fs.promises.writeFile(`${subDir}/nested.txt`, '');
+
+		const events: string[] = [];
+		const { promise, resolve } = Promise.withResolvers<void>();
+		using watcher = fs.watch(testDir, (eventType, filename) => {
+			events.push(filename);
+			if (filename == 'direct.txt') resolve();
+		});
+
+		await fs.promises.writeFile(`${subDir}/nested.txt`, 'x');
+		await fs.promises.writeFile(`${testDir}/direct.txt`, 'x');
+		await withTimeout(promise);
+
+		assert(!events.some(filename => filename.includes('nested.txt')));
+	});
+
 	test('watch("/") receives events for files under root #293', async () => {
 		// Regression: emitChange previously exited its parent-walk before
 		// checking watchers.get('/'), so a watcher registered on '/' never fired.
