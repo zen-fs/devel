@@ -1,94 +1,61 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { execFileSync } from 'node:child_process';
 import { existsSync, globSync, mkdirSync, rmSync } from 'node:fs';
 import { join, parse, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
 import type * as CI from '../ci.js';
 
-const { values: options, positionals } = parseArgs({
-	options: {
-		// Output
-		help: { short: 'h', type: 'boolean', default: false },
-		verbose: { short: 'v', type: 'boolean', default: false },
-		quiet: { short: 'q', type: 'boolean', default: false },
-		log: { short: 'l', type: 'string', default: '' },
-		'file-names': { short: 'N', type: 'boolean', default: false },
-		ci: { short: 'C', type: 'boolean', default: false },
-		debug: { short: 'd', type: 'boolean', default: false },
+function positiveInteger(value: string): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 1) throw new InvalidArgumentError('Not a positive integer.');
+	return number;
+}
 
-		// Test behavior
-		test: { short: 't', type: 'string' },
-		force: { short: 'f', type: 'boolean', default: false },
-		auto: { short: 'a', type: 'boolean', default: false },
-		build: { short: 'b', type: 'boolean', default: false },
-		common: { short: 'c', type: 'boolean', default: false },
-		inspect: { short: 'I', type: 'boolean', default: false },
-		skip: { short: 's', type: 'string', multiple: true, default: [] },
-		'exit-on-fail': { short: 'e', type: 'boolean' },
-		runs: { short: 'r', type: 'string', default: '1' },
+const cli = new Command('zenfs-test')
+	.description('Runs the ZenFS test suites')
+	.argument('[paths...]', 'The setup files to run tests on')
 
-		// Coverage and performance
-		coverage: { type: 'string', default: 'tests/.coverage' },
-		preserve: { short: 'p', type: 'boolean' },
-		report: { type: 'boolean', default: false },
-		'report-only': { type: 'boolean', default: false },
-		clean: { type: 'boolean', default: false },
-		profile: { type: 'boolean', default: false },
-	},
-	strict: true,
-	allowPositionals: true,
-});
+	.optionsGroup('Behavior:')
+	.option('-a, --auto', 'Automatically detect setup files')
+	.option('-b, --build', 'Run the npm build script prior to running tests')
+	.option('-c, --common', 'Also run tests not specific to any backend')
+	.option('-e, --exit-on-fail', 'If any tests suites fail, exit immediately')
+	.option('-r, --runs <n>', 'Run tests n times and print average result', positiveInteger, 1)
+	.option('-t, --test <glob>', 'Which FS test suite(s) to run')
+	.option('-f, --force', 'Whether to use --test-force-exit')
+	.option('-I, --inspect', 'Use the inspector for debugging')
+	.option('-s, --skip <pattern...>', 'Skip tests with names matching the given pattern; can be passed multiple times', [])
+	.option('-d, --debug', 'Output debug messages from the test runner')
+
+	.optionsGroup('Output:')
+	.option('-v, --verbose', 'Output verbose messages')
+	.addOption(new Option('-q, --quiet', "Don't output normal messages").conflicts('verbose'))
+	.option('-l, --log <level>', 'Change the default log level for test output; can be a number or string')
+	.option('-N, --file-names', 'Use full file paths for tests from setup files instead of the base name')
+	.option('-C, --ci', 'Continuous integration (CI) mode, which reports to the GitHub Checks API; requires @octokit/action')
+
+	.optionsGroup('Coverage:')
+	.option('--coverage <dir>', 'Override the default coverage data directory', 'tests/.coverage')
+	.option('-p, --preserve', 'Do not delete or report coverage data')
+	.option('--report', 'Report coverage along with test results')
+	.option('--report-only', 'Only report coverage')
+	.option('--clean', 'Only clean up the coverage directory')
+	.option('--profile', 'Record performance profiles')
+	.parse();
+
+const options = cli.opts();
+const [positionals] = cli.processedArgs;
 
 function debug(...args: unknown[]): void {
 	if (options.debug || process.env.DEBUG)
 		console.debug(styleText('dim', '[debug]'), ...args.map(a => (typeof a === 'string' ? styleText('dim', a) : a)));
 }
 
-if (options.help) {
-	console.log(`zenfs-test [...options] <...paths> 
-
-Paths: The setup files to run tests on
-
-Behavior:
-    -a, --auto            Automatically detect setup files
-    -b, --build           Run the npm build script prior to running tests
-    -c, --common          Also run tests not specific to any backend
-    -e, --exit-on-fail    If any tests suites fail, exit immediately
-    -r, --runs <n>        Run tests n times and print average result
-    -t, --test <glob>     Which FS test suite(s) to run
-    -f, --force           Whether to use --test-force-exit
-    -I, --inspect         Use the inspector for debugging
-    -s, --skip <pattern>  Skip tests with names matching the given pattern. Can be specified multiple times.
-    -d, --debug           Output debug messages from the test runner
-
-Output:
-    -h, --help            Outputs this help message
-    -v, --verbose         Output verbose messages
-    -q, --quiet           Don't output normal messages
-    -l, --logs <level>    Change the default log level for test output. Level can be a number or string
-    -N, --file-names      Use full file paths for tests from setup files instead of the base name
-    -C, --ci              Continuous integration (CI) mode. This interacts with the Github
-                          Checks API for better test status. Requires @octokit/action
-
-Coverage:
-    --coverage <dir>      Override the default coverage data directory
-    -p, --preserve        Do not delete or report coverage data
-    --report              Report coverage along with test results
-    --report-only         ONLY report coverage
-    --clean               ONLY clean up coverage directory
-    --profile             Record performance profiles`);
-	process.exit();
-}
-
-if (options.quiet && options.verbose) {
-	console.error('ERROR: Can not specify --verbose and --quiet');
-	process.exit(1);
-}
-
 process.env.NODE_V8_COVERAGE = options.coverage;
-process.env.ZENFS_LOG_LEVEL = options.log;
+process.env.ZENFS_LOG_LEVEL = options.log ?? '';
 if (options.verbose) process.env.VERBOSE = '1';
 
 if (options.clean) {
@@ -107,16 +74,16 @@ function report(): void {
 	}
 }
 
-if (options['report-only']) {
+if (options.reportOnly) {
 	report();
 	process.exit();
 }
 
-const nRuns = Number.isSafeInteger(parseInt(options.runs)) ? parseInt(options.runs) : 1;
+const nRuns = options.runs;
 
 let ci: typeof CI | undefined;
 if (options.ci) {
-	if (options.runs && nRuns !== 1) {
+	if (nRuns != 1) {
 		console.error('Cannot use --ci with --runs');
 		process.exit(1);
 	}
@@ -232,7 +199,7 @@ async function runTests(config: RunTestOptions): Promise<void> {
 			console.error(`${styleText(['red', 'bold'], 'failed')}${identText} ${time()}`);
 			await ci?.completeCheck(statusName, 'failure');
 			process.exitCode = 1;
-			if (options['exit-on-fail']) process.exit();
+			if (options.exitOnFail) process.exit();
 			return;
 		}
 	}
@@ -259,13 +226,13 @@ for (const setupFile of positionals) {
 
 	process.env.SETUP = setupFile;
 
-	const name = options['file-names'] && !options.ci ? setupFile : parse(setupFile).name;
+	const name = options.fileNames && !options.ci ? setupFile : parse(setupFile).name;
 
 	await runTests({
 		name,
 		args: [`${testsGlob.replaceAll("'", "\\'")}`, process.env.CMD || ''],
 		shouldSkip() {
-			return basename(setupFile).startsWith('_') && options.auto;
+			return basename(setupFile).startsWith('_') && !!options.auto;
 		},
 	});
 }

@@ -1,44 +1,23 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import { Command, Option } from 'commander';
 import { constants as c, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path/posix';
-import { parseArgs, styleText, type InspectColor } from 'node:util';
+import { styleText, type InspectColor } from 'node:util';
 import makeIndex from '../make_index.js';
 
-const { values: options, positionals } = parseArgs({
-	options: {
-		help: { short: 'h', type: 'boolean', default: false },
-		ignore: { short: 'i', type: 'string', multiple: true, default: [] },
-		output: { short: 'o', type: 'string', default: 'index.json' },
-		quiet: { short: 'q', type: 'boolean', default: false },
-		xdev: { type: 'boolean', default: false },
-		verbose: { type: 'boolean', default: false },
-	},
-	allowPositionals: true,
-});
+const cli = new Command('make-index')
+	.description('Creates an index of a directory, for use with backends like Fetch')
+	.argument('[path]', 'The path to create a listing for', '.')
+	.option('-o, --output <path>', 'Path to the output file', 'index.json')
+	.option('-i, --ignore <pattern...>', 'Ignore files which match the glob pattern; can be passed multiple times', [])
+	.option('--xdev', 'Force crossing device/FS boundaries')
+	.addOption(new Option('-q, --quiet', "Don't output anything, including errors").conflicts('verbose'))
+	.option('--verbose', 'Output verbose messages')
+	.parse();
 
-const root = positionals.at(-1) || '.';
-
-if (options.help) {
-	console.log(`make-index <path> [...options]
-
-path: The path to create a listing for
-
-options:
-    -h, --help              Outputs this help message
-    -q, --quiet             The command will not generate any output, including error messages.
-        --verbose           Output verbose messages
-        --xdev              Force crossing device/FS boundaries
-    -o, --output <path>     Path to the output file. Defaults to listing.
-    -i, --ignore <pattern>  Ignores files which match the glob <pattern>. Can be passed multiple times.
-	`);
-	process.exit();
-}
-
-if (options.quiet && options.verbose) {
-	console.log('Can not use both --verbose and --quiet.');
-	process.exit();
-}
+const options = cli.opts();
+const [root] = cli.processedArgs;
 
 function fixSlash(path: string): string {
 	return path.replaceAll('\\', '/');
