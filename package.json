@@ -14,6 +14,7 @@
 	],
 	"bin": {
 		"make-index": "dist/bin/make-index.js",
+		"node-compat": "dist/bin/node-compat.js",
 		"zenfs-test": "dist/bin/zenfs-test.js",
 		"zci": "dist/bin/zci.js"
 	},
@@ -34,11 +35,12 @@
 		"url": "https://github.com/zen-fs/devel/issues"
 	},
 	"engines": {
-		"node": ">= 22"
+		"node": ">= 24"
 	},
 	"exports": {
 		"./eslint": "./eslint.shared.js",
 		".": "./dist/index.js",
+		"./node_compat": "./dist/node_compat.js",
 		"./*": "./dist/*.js"
 	},
 	"publishConfig": {
