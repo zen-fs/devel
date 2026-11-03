@@ -15,7 +15,7 @@ export type MarkEntry = {
  */
 export type Marks = Map<string, MarkEntry>;
 
-export const defaultMarksPath = '.node-compat.json';
+export const defaultMarksPath = 'node-compat.json';
 
 /**
  * Opens a marks file, creating it if needed.
