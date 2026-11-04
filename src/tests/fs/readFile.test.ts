@@ -143,4 +143,39 @@ suite('Reading', () => {
 		await assert.rejects(fs.promises.readFile(file, { buffer: 'x' as any }), { code: 'ERR_INVALID_ARG_TYPE' });
 		fs.unlinkSync(file);
 	});
+
+	test('openAsBlob', config('async'), async () => {
+		const file = 'openAsBlob.txt';
+		fs.writeFileSync(file, 'blob contents');
+
+		const blob = await fs.openAsBlob(file, { type: 'text/plain' });
+		assert(blob instanceof Blob);
+		assert.equal(blob.type, 'text/plain');
+		assert.equal(await blob.text(), 'blob contents');
+
+		await assert.rejects(async () => await fs.openAsBlob(file, null as any), { code: 'ERR_INVALID_ARG_TYPE' });
+		await assert.rejects(async () => await fs.openAsBlob(file, { type: 1 as any }), { code: 'ERR_INVALID_ARG_TYPE' });
+		await assert.rejects(async () => await fs.openAsBlob('openAsBlob-missing.txt'), { code: 'ENOENT' });
+		fs.unlinkSync(file);
+	});
+
+	test('openAsBlobSync', config('sync'), async () => {
+		const file = 'openAsBlobSync.txt';
+		fs.writeFileSync(file, 'blob contents');
+
+		for (const path of [file, Buffer.from(file)]) {
+			const blob = fs.openAsBlobSync(path, { type: 'text/plain' });
+			assert(blob instanceof Blob);
+			assert.equal(blob.size, 13);
+			assert.equal(blob.type, 'text/plain');
+			assert.equal(await blob.text(), 'blob contents');
+		}
+
+		assert.equal(fs.openAsBlobSync(file).type, '');
+		assert.throws(() => fs.openAsBlobSync(1 as any), { code: 'ERR_INVALID_ARG_TYPE' });
+		assert.throws(() => fs.openAsBlobSync(file, null as any), { code: 'ERR_INVALID_ARG_TYPE' });
+		assert.throws(() => fs.openAsBlobSync(file, { type: 1 as any }), { code: 'ERR_INVALID_ARG_TYPE' });
+		assert.throws(() => fs.openAsBlobSync('openAsBlobSync-missing.txt'), { code: 'ENOENT' });
+		fs.unlinkSync(file);
+	});
 });
