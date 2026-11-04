@@ -40,7 +40,7 @@
 	"exports": {
 		"./eslint": "./eslint.shared.js",
 		".": "./dist/index.js",
-		"./node_compat": "./dist/node_compat.js",
+		"./node_compat": "./dist/node_compat/index.js",
 		"./*": "./dist/*.js"
 	},
 	"publishConfig": {
