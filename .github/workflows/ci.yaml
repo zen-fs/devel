@@ -31,10 +31,11 @@ jobs:
               uses: actions/checkout@v5
               with:
                   repository: zen-fs/core
-                  path: ../core
+                  path: core
 
             - name: Link @zenfs/core
               run: |
+                  mv core ../core
                   cd ../core
                   npm install
                   npm run build
