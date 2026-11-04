@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import assert from 'node:assert/strict';
+import { Readable } from 'node:stream';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path/posix';
 import { suite, test } from 'node:test';
@@ -205,5 +206,33 @@ suite('Writes', config('write'), () => {
 		assert.equal(fs.readFileSync(file, 'latin1'), 'abcd');
 
 		fs.unlinkSync(file);
+	});
+
+	test('writeFile and appendFile write iterables', async () => {
+		const path = 'write-iterable.txt';
+
+		await fs.promises.writeFile(path, ['a', Buffer.from('b'), new Uint8Array([99])]);
+		assert.equal(fs.readFileSync(path, 'utf8'), 'abc');
+
+		await fs.promises.writeFile(
+			path,
+			(async function* () {
+				yield 'd';
+				yield Buffer.from('e');
+			})(),
+		);
+		assert.equal(fs.readFileSync(path, 'utf8'), 'de');
+
+		await fs.promises.writeFile(path, ['6869'], { encoding: 'hex' });
+		assert.equal(fs.readFileSync(path, 'utf8'), 'hi');
+
+		await fs.promises.appendFile(path, Readable.from(['!', '?']));
+		assert.equal(fs.readFileSync(path, 'utf8'), 'hi!?');
+
+		await using handle = await fs.promises.open(path, 'w');
+		await handle.writeFile(Readable.from([Buffer.from('xy'), 'z']));
+		assert.equal(fs.readFileSync(path, 'utf8'), 'xyz');
+
+		await assert.rejects(fs.promises.writeFile(path, [1] as any), { code: 'ERR_INVALID_ARG_TYPE' });
 	});
 });

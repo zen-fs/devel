@@ -178,4 +178,30 @@ suite('Reading', () => {
 		assert.throws(() => fs.openAsBlobSync('openAsBlobSync-missing.txt'), { code: 'ENOENT' });
 		fs.unlinkSync(file);
 	});
+
+	test('readFile and writeFile reject with an aborted signal', async () => {
+		const path = 'abort-signal.txt';
+		fs.writeFileSync(path, 'contents');
+		const reason = new Error('reason');
+		const signal = AbortSignal.abort(reason);
+		const expected = { name: 'AbortError', code: 'ABORT_ERR', cause: reason };
+
+		await assert.rejects(fs.promises.readFile(path, { signal }), expected);
+		await assert.rejects(fs.promises.writeFile('abort-signal-new.txt', 'x', { signal }), expected);
+		assert(!fs.existsSync('abort-signal-new.txt'));
+
+		await using handle = await fs.promises.open(path, 'r+');
+		await assert.rejects(handle.readFile({ signal }), expected);
+		await assert.rejects(handle.writeFile('x', { signal }), expected);
+		assert.equal(fs.readFileSync(path, 'utf8'), 'contents');
+
+		const { promise, resolve } = Promise.withResolvers<unknown>();
+		fs.readFile(path, { signal }, resolve);
+		const error = await promise;
+		assert.throws(() => {
+			throw error;
+		}, expected);
+
+		assert.equal(await fs.promises.readFile(path, { signal: new AbortController().signal, encoding: 'utf8' }), 'contents');
+	});
 });

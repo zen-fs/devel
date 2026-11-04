@@ -203,4 +203,26 @@ suite('cp', () => {
 		assert.throws(() => fs.cpSync(root + '/file', root + '/directory'), toDirectory);
 		await assert.rejects(fs.promises.cp(root + '/file', root + '/directory'), toDirectory);
 	});
+
+	test('invalid copies throw Node error codes', config('sync'), async () => {
+		const root = fresh('errors');
+		fs.mkdirSync(root + '/directory');
+		fs.writeFileSync(root + '/file', 'contents');
+		fs.writeFileSync(root + '/existing', '');
+
+		const cases: [string, Parameters<typeof fs.cpSync>, Record<string, unknown>][] = [
+			['same file', [root + '/file', root + '/file'], { code: 'ERR_FS_CP_EINVAL', errno: 22 }],
+			['subdirectory of self', [root + '/directory', root + '/directory/sub', { recursive: true }], { code: 'ERR_FS_CP_EINVAL', errno: 22 }],
+			['directory without recursive', [root + '/directory', root + '/copy'], { code: 'ERR_FS_EISDIR', errno: 21 }],
+			['errorOnExist', [root + '/file', root + '/existing', { force: false, errorOnExist: true }], { code: 'ERR_FS_CP_EEXIST', errno: 17 }],
+		];
+
+		for (const [name, args, expected] of cases) {
+			assert.throws(() => fs.cpSync(...args), { code: expected.code }, name);
+			await assert.rejects(fs.promises.cp(...args), { name: 'SystemError', syscall: 'cp', ...expected }, name);
+		}
+
+		assert.equal(fs.readFileSync(root + '/file', 'utf8'), 'contents');
+		assert(!fs.existsSync(root + '/directory/sub'));
+	});
 });

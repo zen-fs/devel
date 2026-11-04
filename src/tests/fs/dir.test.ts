@@ -127,6 +127,20 @@ suite('Dir', config('directories'), () => {
 		await assert.rejects(dir.close(), { code: 'ERR_DIR_CLOSED' });
 	});
 
+	test('close with a callback multiple times', config('async'), async () => {
+		const dir = fs.opendirSync(testDirPath);
+		dir.closeSync();
+
+		let isSync = true;
+		const { promise, resolve } = Promise.withResolvers<[unknown, boolean]>();
+		dir.close(error => resolve([error, isSync]));
+		isSync = false;
+
+		const [error, calledSynchronously] = await promise;
+		assert.equal((error as NodeJS.ErrnoException)?.code, 'ERR_DIR_CLOSED');
+		assert(!calledSynchronously);
+	});
+
 	test('closeSync multiple times', config('sync'), () => {
 		const dir = fs.opendirSync(testDirPath);
 		dir.closeSync();

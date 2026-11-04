@@ -15,6 +15,16 @@ suite('Temporary Directories', config('tempdir'), () => {
 		fs.rmdirSync(path);
 	});
 
+	test('mkdtemp with an empty prefix', async () => {
+		const path = fs.mkdtempSync('');
+		assert(fs.statSync(path).isDirectory());
+		fs.rmdirSync(path);
+
+		const promised = await fs.promises.mkdtemp('');
+		assert(fs.statSync(promised).isDirectory());
+		fs.rmdirSync(promised);
+	});
+
 	test('mkdtemp', config('async'), async () => {
 		const path = await fs.promises.mkdtemp('/tmp/test-', { encoding: 'utf8' });
 

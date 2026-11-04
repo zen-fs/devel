@@ -94,4 +94,27 @@ suite('Truncating', config('truncate'), () => {
 		await fs.promises.truncate(path, 10);
 		assert.equal(await fs.promises.readFile(path, 'utf8'), 'SECR\0\0\0\0\0\0');
 	});
+
+	test('Negative lengths truncate to 0', async () => {
+		const path = 'truncate-negative.txt';
+
+		fs.writeFileSync(path, 'abc');
+		fs.truncateSync(path, -1);
+		assert.equal(fs.statSync(path).size, 0);
+
+		fs.writeFileSync(path, 'abc');
+		const fd = fs.openSync(path, 'r+');
+		fs.ftruncateSync(fd, -1);
+		assert.equal(fs.fstatSync(fd).size, 0);
+		fs.closeSync(fd);
+
+		fs.writeFileSync(path, 'abc');
+		await fs.promises.truncate(path, -1);
+		assert.equal(fs.statSync(path).size, 0);
+
+		fs.writeFileSync(path, 'abc');
+		await using handle = await fs.promises.open(path, 'r+');
+		await handle.truncate(-1);
+		assert.equal((await handle.stat()).size, 0);
+	});
 });

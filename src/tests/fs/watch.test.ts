@@ -126,6 +126,18 @@ suite('Watch', config('watch'), () => {
 		assert(!changeDetected);
 	});
 
+	test('unwatchFile() emits stop asynchronously', async () => {
+		const watcher = fs.watchFile(testFile, () => {});
+
+		let isSync = true;
+		const { promise, resolve } = Promise.withResolvers<boolean>();
+		watcher.on('stop', () => resolve(isSync));
+		fs.unwatchFile(testFile);
+		isSync = false;
+
+		assert.equal(await promise, false);
+	});
+
 	test('Directories can be watched', async () => {
 		const { promise, resolve } = Promise.withResolvers<[string, string]>();
 
@@ -326,5 +338,33 @@ suite('Watch', config('watch'), () => {
 		// Creating the file adds an entry to the root directory, which is a 'rename' event
 		assert.equal(eventType, 'rename');
 		assert.equal(filename, 'watch-root-file.txt');
+	});
+
+	test('Watching a missing path throws ENOENT', async () => {
+		const path = '/watch-missing/file.txt';
+		const expected = { code: 'ENOENT', syscall: 'watch', path, filename: path, message: `ENOENT: no such file or directory, watch '${path}'` };
+
+		assert.throws(() => fs.watch(path), expected);
+
+		const iterator = fs.promises.watch(path);
+		await assert.rejects(iterator.next(), expected);
+	});
+
+	test('Aborting the signal closes the watcher', async () => {
+		const controller = new AbortController();
+		const watcher = fs.watch(testFile, { signal: controller.signal });
+		let closes = 0;
+		watcher.on('close', () => closes++);
+
+		controller.abort();
+		watcher.close();
+		await new Promise(resolve => setTimeout(resolve, 0));
+		assert.equal(closes, 1);
+
+		const preAborted = fs.watch(testFile, { signal: AbortSignal.abort() });
+		let isSync = true;
+		const closed = new Promise<boolean>(resolve => preAborted.on('close', () => resolve(isSync)));
+		isSync = false;
+		assert.equal(await closed, false);
 	});
 });

@@ -21,6 +21,19 @@ suite('Opening files', () => {
 		assert(handle.fd >= -Infinity);
 	});
 
+	test('flags default to "r"', async () => {
+		fs.closeSync(fs.openSync(filename));
+		fs.closeSync(fs.openSync(filename, undefined));
+		assert.throws(() => fs.writeSync(fs.openSync(filename), 'x'), { code: 'EBADF' });
+
+		const handle = await fs.promises.open(filename);
+		await handle.close();
+
+		const { promise, resolve, reject } = Promise.withResolvers<number>();
+		fs.open(filename, (error, fd) => (error ? reject(error) : resolve(fd!)));
+		fs.closeSync(await promise);
+	});
+
 	test('Windows-only open flags are 0', () => {
 		for (const name of ['UV_FS_O_FILEMAP', 'UV_FS_O_TEMPORARY', 'UV_FS_O_SHORT_LIVED', 'UV_FS_O_SEQUENTIAL', 'UV_FS_O_RANDOM'] as const) {
 			assert.equal(fs.constants[name as keyof typeof fs.constants], 0, name);

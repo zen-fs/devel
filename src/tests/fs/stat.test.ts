@@ -144,4 +144,28 @@ suite('Stats', () => {
 		controller.abort(reason);
 		await assert.rejects(pending, error);
 	});
+
+	test('bigint stats have bigint fields', async () => {
+		const path = 'stat-bigint.txt';
+		fs.writeFileSync(path, 'abc');
+		const fields = ['dev', 'ino', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'size', 'blksize', 'blocks', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'] as const;
+
+		for (const stats of [fs.statSync(path, { bigint: true }), fs.lstatSync(path, { bigint: true }), await fs.promises.stat(path, { bigint: true })]) {
+			for (const field of fields) assert.equal(typeof stats[field], 'bigint', field);
+			assert.equal(stats.size, 3n);
+			assert(stats.isFile());
+		}
+	});
+
+	test('watchFile with bigint', async () => {
+		const path = 'stat-watch-bigint.txt';
+		fs.writeFileSync(path, 'abc');
+
+		const { promise, resolve } = Promise.withResolvers<[unknown, unknown]>();
+		fs.watchFile(path, { bigint: true, interval: 5 }, (current, previous) => resolve([current.size, previous.size]));
+		setTimeout(() => fs.writeFileSync(path, 'abcd'), 20);
+
+		assert.deepEqual(await promise, [4n, 3n]);
+		fs.unwatchFile(path);
+	});
 });

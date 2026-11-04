@@ -290,4 +290,112 @@ suite('Streams', config('streams'), () => {
 		assert.equal(next.toString(), testData[7]);
 		fs.closeSync(fd);
 	});
+
+	test('Streams expose fd, which stays open with autoClose false', async () => {
+		const path = 'stream-fd.txt';
+		const stream = fs.createWriteStream(path, { autoClose: false });
+		assert.equal(stream.fd, null);
+
+		await new Promise(resolve => stream.end('abc', () => resolve(null)));
+		assert.equal(typeof stream.fd, 'number');
+		fs.writeSync(stream.fd!, 'd');
+		fs.closeSync(stream.fd!);
+		assert.equal(fs.readFileSync(path, 'utf8'), 'abcd');
+
+		const closing = fs.createWriteStream(path);
+		await new Promise(resolve => closing.end('x', () => closing.on('close', resolve)));
+		assert.equal(closing.fd, null);
+	});
+
+	test('Write streams without start write at the current position', async () => {
+		const path = 'stream-write-position.txt';
+		fs.writeFileSync(path, '12345');
+		const fd = fs.openSync(path, 'r+');
+		fs.readSync(fd, Buffer.alloc(2));
+
+		const stream = fs.createWriteStream(null as any, { fd, autoClose: false });
+		await new Promise(resolve => stream.end('XY', () => resolve(null)));
+		fs.writeSync(fd, '!');
+		fs.closeSync(fd);
+		assert.equal(fs.readFileSync(path, 'utf8'), '12XY!');
+	});
+
+	test('Streams emit open and ready only when they open the file', async () => {
+		const path = 'stream-events.txt';
+		fs.writeFileSync(path, 'abc');
+
+		async function events(stream: InstanceType<typeof fs.ReadStream> | InstanceType<typeof fs.WriteStream>): Promise<string[]> {
+			const emitted: string[] = [];
+			for (const event of ['open', 'ready', 'end', 'finish', 'close']) {
+				stream.on(event, (fd: unknown) => emitted.push(event == 'open' ? `open(${typeof fd})` : event));
+			}
+			if (stream instanceof fs.ReadStream) stream.resume();
+			else stream.end();
+			await new Promise(resolve => stream.on('close', resolve));
+			return emitted;
+		}
+
+		assert.deepEqual(await events(fs.createReadStream(path)), ['open(number)', 'ready', 'end', 'close']);
+		assert.deepEqual(await events(fs.createWriteStream(path)), ['open(number)', 'ready', 'finish', 'close']);
+		assert.deepEqual(await events(fs.createReadStream(null as any, { fd: fs.openSync(path, 'r') })), ['end', 'close']);
+		assert.deepEqual(await events(fs.createWriteStream(null as any, { fd: fs.openSync(path, 'w') })), ['finish', 'close']);
+	});
+
+	test('Streams use the fs option', async () => {
+		const path = 'stream-fs-option.txt';
+		fs.writeFileSync(path, 'hello');
+		const calls: string[] = [];
+
+		const operations = {
+			open: (_: unknown, flags: string, mode: number, callback: (error: Error | null, fd: number) => void) => {
+				calls.push('open');
+				fs.open(path, flags, mode, callback as any);
+			},
+			read: (...args: Parameters<typeof fs.read>) => {
+				calls.push('read');
+				(fs.read as (...args: unknown[]) => void)(...args);
+			},
+			write: (...args: Parameters<typeof fs.write>) => {
+				calls.push('write');
+				(fs.write as (...args: unknown[]) => void)(...args);
+			},
+			close: (fd: number, callback: (error: Error | null) => void) => {
+				calls.push('close');
+				fs.close(fd, callback as any);
+			},
+		};
+
+		let data = '';
+		for await (const chunk of fs.createReadStream(path, { fs: operations, encoding: 'utf8' })) data += chunk;
+		assert.equal(data, 'hello');
+		assert.deepEqual([calls[0], calls.at(-1)], ['open', 'close']);
+		assert(calls.includes('read'));
+
+		calls.length = 0;
+		const writer = fs.createWriteStream(path, { fs: operations });
+		await new Promise(resolve => writer.end('written', () => writer.on('close', resolve)));
+		assert.equal(fs.readFileSync(path, 'utf8'), 'written');
+		assert.deepEqual(calls, ['open', 'write', 'close']);
+
+		// Without opening or closing, `open` and `close` are not needed
+		calls.length = 0;
+		const fd = fs.openSync(path, 'r');
+		data = '';
+		for await (const chunk of fs.createReadStream(null as any, { fd, fs: { read: operations.read }, autoClose: false, encoding: 'utf8' })) data += chunk;
+		fs.closeSync(fd);
+		assert.equal(data, 'written');
+
+		assert.throws(() => fs.createReadStream(path, { fs: { read: operations.read, close: operations.close } }), {
+			code: 'ERR_INVALID_ARG_TYPE',
+			message: /options\.fs\.open/,
+		});
+		assert.throws(() => fs.createReadStream(path, { fs: { open: operations.open, read: operations.read } }), {
+			code: 'ERR_INVALID_ARG_TYPE',
+			message: /options\.fs\.close/,
+		});
+		assert.throws(() => fs.createWriteStream(path, { fs: { open: operations.open, close: operations.close } as any }), {
+			code: 'ERR_INVALID_ARG_TYPE',
+			message: /options\.fs\.write/,
+		});
+	});
 });

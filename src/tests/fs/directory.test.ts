@@ -110,6 +110,32 @@ suite('Directories', config('directories'), () => {
 		await fs.promises.rm('/rmDirRecursively', { recursive: true });
 	});
 
+	test('rm on a directory without recursive', async () => {
+		const path = '/rm-directory';
+		fs.mkdirSync(path);
+		const expected = {
+			name: 'SystemError',
+			code: 'ERR_FS_EISDIR',
+			errno: 21,
+			syscall: 'rm',
+			path,
+			message: `Path is a directory: rm returned EISDIR (is a directory) ${path}`,
+		};
+
+		assert.throws(() => fs.rmSync(path), expected);
+		assert.throws(() => fs.rmSync(path, { force: true }), expected);
+		await assert.rejects(fs.promises.rm(path), expected);
+
+		const { promise, resolve } = Promise.withResolvers<unknown>();
+		fs.rm(path, resolve);
+		const error = await promise;
+		assert.throws(() => {
+			throw error;
+		}, expected);
+
+		assert(fs.statSync(path).isDirectory());
+	});
+
 	test('rmSync recursively', config('sync'), () => {
 		fs.mkdirSync('/rmDirRecursively');
 		fs.mkdirSync('/rmDirRecursively/rmDirNested');
