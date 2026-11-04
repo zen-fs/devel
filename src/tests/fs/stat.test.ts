@@ -148,9 +148,28 @@ suite('Stats', () => {
 	test('bigint stats have bigint fields', async () => {
 		const path = 'stat-bigint.txt';
 		fs.writeFileSync(path, 'abc');
-		const fields = ['dev', 'ino', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'size', 'blksize', 'blocks', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'] as const;
+		const fields = [
+			'dev',
+			'ino',
+			'mode',
+			'nlink',
+			'uid',
+			'gid',
+			'rdev',
+			'size',
+			'blksize',
+			'blocks',
+			'atimeMs',
+			'mtimeMs',
+			'ctimeMs',
+			'birthtimeMs',
+		] as const;
 
-		for (const stats of [fs.statSync(path, { bigint: true }), fs.lstatSync(path, { bigint: true }), await fs.promises.stat(path, { bigint: true })]) {
+		for (const stats of [
+			fs.statSync(path, { bigint: true }),
+			fs.lstatSync(path, { bigint: true }),
+			await fs.promises.stat(path, { bigint: true }),
+		]) {
 			for (const field of fields) assert.equal(typeof stats[field], 'bigint', field);
 			assert.equal(stats.size, 3n);
 			assert(stats.isFile());

@@ -381,7 +381,8 @@ suite('Streams', config('streams'), () => {
 		calls.length = 0;
 		const fd = fs.openSync(path, 'r');
 		data = '';
-		for await (const chunk of fs.createReadStream(null as any, { fd, fs: { read: operations.read }, autoClose: false, encoding: 'utf8' })) data += chunk;
+		for await (const chunk of fs.createReadStream(null as any, { fd, fs: { read: operations.read }, autoClose: false, encoding: 'utf8' }))
+			data += chunk;
 		fs.closeSync(fd);
 		assert.equal(data, 'written');
 
