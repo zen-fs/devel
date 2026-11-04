@@ -4,7 +4,7 @@ import { matchesSubsystem, readApiHistory, readCommits } from './commits.js';
 import * as docs from './docs.js';
 import { Repository } from './git.js';
 import { PR } from './pr.js';
-import { compareVersions } from './versions.js';
+import { compareVersions, isVersion, parseVersion } from './versions.js';
 
 export interface NodeRepositoryInit {
 	/** Path to a Node.js clone */
@@ -30,6 +30,11 @@ export class NodeRepository extends Repository {
 
 	/** Every release found in the changelogs, newest first */
 	readonly releases: changelog.Release[] = [];
+
+	/** ISO date of each release line's first release */
+	private readonly lineStarts = new Map<number, string>();
+
+	private readonly releaseDates = new Map<string, string>();
 
 	/**
 	 * Loads PRs, releases, and the API surface from a local Node.js clone.
@@ -66,10 +71,32 @@ export class NodeRepository extends Repository {
 		}
 
 		this.releases = [...releases.values()].sort((left, right) => compareVersions(right.version, left.version));
+		for (const release of this.releases.toReversed()) {
+			this.releaseDates.set(release.version, release.date);
+			if (!this.lineStarts.has(release.line)) this.lineStarts.set(release.line, release.date);
+		}
 	}
 
 	get latest(): changelog.Release | undefined {
 		return this.releases[0];
+	}
+
+	/**
+	 * Whether a change released in any of `versions` is part of `target`.
+	 * Releases from older lines count if they came out before the target's line started.
+	 * @param versions Versions, optionally prefixed with `v`
+	 */
+	releaseIncludes(target: string, versions: string[]): boolean {
+		const [line] = parseVersion(target);
+		const lineStart = this.lineStarts.get(line);
+		return versions.some(version => {
+			if (!isVersion(version)) return false;
+			const [major] = parseVersion(version);
+			if (major == line) return compareVersions(version, target) <= 0;
+			if (major > line || !lineStart) return false;
+			const date = this.releaseDates.get(version.replace(/^v/, ''));
+			return !date || date <= lineStart;
+		});
 	}
 
 	/**

@@ -8,6 +8,13 @@ export function parseVersion(version: string): [major: number, minor: number, pa
 	return [major, minor, patch];
 }
 
+/**
+ * Whether `version` is a full version, optionally prefixed with `v`, rather than a placeholder like `REPLACEME`
+ */
+export function isVersion(version: string): boolean {
+	return /^v?\d+\.\d+\.\d+$/.test(version);
+}
+
 export function compareVersions(left: string, right: string): number {
 	const [leftMajor, leftMinor, leftPatch] = parseVersion(left);
 	const [rightMajor, rightMinor, rightPatch] = parseVersion(right);

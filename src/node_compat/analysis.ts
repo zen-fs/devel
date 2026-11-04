@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import type * as changelog from './changelog.js';
 import type { Api } from './docs.js';
 import type { NodeRepository } from './node.js';
 import type { PR } from './pr.js';
 import type { MarkEntry, Marks } from './state.js';
-import { compareVersions } from './versions.js';
+import { compareVersions, isVersion } from './versions.js';
 import * as zenfs from './zenfs.js';
 
 /**
@@ -90,6 +91,53 @@ export class Analysis {
 			return true;
 		});
 	}
+
+	/**
+	 * PRs and APIs that are part of a release, including those released earlier.
+	 * API availability comes from the docs' `added` and `removed` versions, so APIs without an `added` version are always included.
+	 */
+	coverage(version: string): Coverage | undefined {
+		const release = this.node.releases.find(release => release.version == version.replace(/^v/, ''));
+		if (!release) return;
+
+		const prs = [...this.prs.values()].filter(({ pr }) =>
+			this.node.releaseIncludes(
+				release.version,
+				pr.releases.map(release => release.version),
+			),
+		);
+		const apis = [...this.apis.values()].filter(({ api }) => {
+			const added = api.added.filter(isVersion);
+			return (!added.length || this.node.releaseIncludes(release.version, added)) && !this.node.releaseIncludes(release.version, api.removed);
+		});
+		const pending = prs.filter(({ status }) => status == 'pending');
+		const missing = apis.filter(({ present, mark }) => !present && !mark);
+		return { release, prs, apis, pending, missing, complete: !pending.length && !missing.length };
+	}
+
+	/**
+	 * The newest release with every PR and API covered.
+	 * @param latest Only consider this release and older ones
+	 */
+	lastComplete(latest?: string): Coverage | undefined {
+		for (const { version } of this.node.releases) {
+			if (latest && compareVersions(version, latest) > 0) continue;
+			const coverage = this.coverage(version);
+			if (coverage?.complete) return coverage;
+		}
+	}
+}
+
+export interface Coverage {
+	release: changelog.Release;
+	/** Every PR that is part of the release */
+	prs: PRStatus[];
+	/** Every API documented for the release */
+	apis: ApiStatus[];
+	pending: PRStatus[];
+	/** APIs ZenFS lacks that are not marked */
+	missing: ApiStatus[];
+	complete: boolean;
 }
 
 /**
