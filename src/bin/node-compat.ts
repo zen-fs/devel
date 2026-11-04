@@ -111,7 +111,10 @@ cli.command('summary', { isDefault: true })
 
 		console.log(styleText('bold', '\nAPIs'), styleText('dim', `(${apis.length} documented)`));
 		console.log(`  ${present} present (${Math.floor((present / apis.length) * 100)}%), ${missing.length} missing and unmarked`);
-		if (missing.length) console.log(styleText('red', '  ' + missing.map(({ api }) => api.id).join(', ')));
+		if (missing.length) {
+			console.log(styleText('bold', '  Missing:'));
+			for (const { api } of missing) console.log('   ', styleText('red', api.id));
+		}
 
 		if (pending.length) {
 			console.log(styleText('bold', '\nPending features'), styleText('dim', `(${pending.length})`));
