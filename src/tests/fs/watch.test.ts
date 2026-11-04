@@ -93,6 +93,22 @@ suite('Watch', config('watch'), () => {
 		}
 	});
 
+	test('watchFile() returns a shared StatWatcher', () => {
+		const first = () => {};
+		const watcher = fs.watchFile(testFile, { interval: 10 }, first);
+		assert.equal(fs.watchFile(testFile, () => {}), watcher);
+		assert.equal(watcher.ref(), watcher);
+		assert.equal(watcher.unref(), watcher);
+		assert.equal(watcher.listenerCount('change'), 2);
+
+		fs.unwatchFile(testFile, first);
+		assert.equal(watcher.listenerCount('change'), 1);
+		fs.unwatchFile(testFile);
+		assert.equal(watcher.listenerCount('change'), 0);
+		assert.notEqual(fs.watchFile(testFile, () => {}), watcher);
+		fs.unwatchFile(testFile);
+	});
+
 	test('unwatchFile() works', async () => {
 		let changeDetected = false;
 

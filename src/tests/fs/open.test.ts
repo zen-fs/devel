@@ -20,4 +20,10 @@ suite('Opening files', () => {
 		await using handle = await fs.promises.open(filename, 'rs');
 		assert(handle.fd >= -Infinity);
 	});
+
+	test('Windows-only open flags are 0', () => {
+		for (const name of ['UV_FS_O_FILEMAP', 'UV_FS_O_TEMPORARY', 'UV_FS_O_SHORT_LIVED', 'UV_FS_O_SEQUENTIAL', 'UV_FS_O_RANDOM'] as const) {
+			assert.equal(fs.constants[name as keyof typeof fs.constants], 0, name);
+		}
+	});
 });

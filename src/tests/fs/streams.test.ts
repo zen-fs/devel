@@ -202,7 +202,7 @@ suite('Streams', config('streams'), () => {
 		assert.deepEqual(chunks, []);
 	});
 
-	const text = async (stream: AsyncIterable<string | Buffer>) => {
+	const text = async (stream: AsyncIterable<string | Uint8Array>) => {
 		const chunks: Buffer[] = [];
 		for await (const chunk of stream) chunks.push(Buffer.from(chunk));
 		return Buffer.concat(chunks).toString();
@@ -261,5 +261,33 @@ suite('Streams', config('streams'), () => {
 		const cancelled = await fs.promises.open(testFilePath);
 		await cancelled.readableWebStream({ autoClose: true }).cancel();
 		assert.equal(cancelled.fd, -1);
+	});
+
+	test('Streams without start read from the current position', async () => {
+		const handle = await fs.promises.open(testFilePath);
+		await handle.read(Buffer.alloc(7));
+		assert.equal(await text(handle.createReadStream({ autoClose: false })), testData.slice(7));
+		assert.equal((await handle.read(Buffer.alloc(1))).bytesRead, 0);
+		await handle.close();
+
+		const fd = fs.openSync(testFilePath, 'r');
+		fs.readSync(fd, Buffer.alloc(7));
+		assert.equal(await text(fs.createReadStream(null as any, { fd, autoClose: false, end: 2 })), testData.slice(7, 10));
+		fs.closeSync(fd);
+
+		const webHandle = await fs.promises.open(testFilePath);
+		await webHandle.read(Buffer.alloc(7));
+		assert.equal(await text(webHandle.readableWebStream()), testData.slice(7));
+		await webHandle.close();
+	});
+
+	test('Streams with start do not move the current position', async () => {
+		const fd = fs.openSync(testFilePath, 'r');
+		fs.readSync(fd, Buffer.alloc(7));
+		assert.equal(await text(fs.createReadStream(null as any, { fd, autoClose: false, start: 0, end: 4 })), testData.slice(0, 5));
+		const next = Buffer.alloc(1);
+		fs.readSync(fd, next);
+		assert.equal(next.toString(), testData[7]);
+		fs.closeSync(fd);
 	});
 });

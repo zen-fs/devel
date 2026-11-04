@@ -42,6 +42,15 @@ suite('Links', config('symlinks'), () => {
 		assert.throws(() => fs.symlinkSync(target, 'symlink-invalid.js', 'bogus' as any), TypeError);
 	});
 
+	test('realpath.native resolves like realpath', async () => {
+		const expected = fs.realpathSync(symlink);
+		assert.equal(fs.realpathSync.native(symlink), expected);
+
+		const { promise, resolve, reject } = Promise.withResolvers<string>();
+		fs.realpath.native(symlink, (error, resolved) => (error ? reject(error) : resolve(resolved)));
+		assert.equal(await promise, expected);
+	});
+
 	test('readlink returns a string unless the encoding is buffer', async () => {
 		const link: string = fs.readlinkSync(symlink);
 		assert.equal(typeof link, 'string');
