@@ -97,7 +97,7 @@ cli.command('summary', { isDefault: true })
 		console.log(styleText('bold', 'ZenFS'.padEnd(9)), core.zenfs.version);
 		console.log(styleText('bold', 'Marks'.padEnd(9)), `${marks.size} in ${displayPath(cli.opts().state)}\n`);
 
-		console.log(styleText('bold', since == '4' ? `PRs` : `PRs since ${since}`), styleText('dim', `(${prs.length})`));
+		console.log(styleText('bold', since == '4' ? 'PRs' : `PRs since ${since}`), styleText('dim', `(${prs.length})`));
 		for (const semver of semvers) {
 			const group = counts[semver];
 			if (!group) continue;
@@ -109,10 +109,15 @@ cli.command('summary', { isDefault: true })
 			console.log(' ', pad(styleText(semverStyles[semver], semver), 11), String(total).padStart(4), ' ', breakdown);
 		}
 
-		console.log(styleText('bold', '\nAPIs'), styleText('dim', `(${apis.length} documented)`));
-		console.log(`  ${present} present (${Math.floor((present / apis.length) * 100)}%), ${missing.length} missing and unmarked`);
+		const compatPercent = Math.floor((present / apis.length) * 100);
+		console.log(
+			styleText('bold', '\nAPI compatibility:'),
+			present + '/' + apis.length,
+			`(${styleText(['bold', compatPercent == 100 ? 'green' : 'yellow'], compatPercent + '%')})`,
+		);
+
 		if (missing.length) {
-			console.log(styleText('bold', '  Missing:'));
+			console.log(styleText('bold', 'Missing APIs:'));
 			for (const { api } of missing) console.log('   ', styleText('red', api.id));
 		}
 
