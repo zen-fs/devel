@@ -27,6 +27,20 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
+            - name: Check out @zenfs/core
+              uses: actions/checkout@v5
+              with:
+                  repository: zen-fs/core
+                  path: ../core
+
+            - name: Link @zenfs/core
+              run: |
+                  cd ../core
+                  npm install
+                  npm run build
+                  cd -
+                  npm i --no-save ../core
+
             - name: Formatting
               run: npm run format:check
 
