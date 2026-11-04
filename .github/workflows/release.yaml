@@ -7,6 +7,40 @@ jobs:
         name: CI Checks
         uses: ./.github/workflows/ci.yaml
     release:
-        name: Release
-        uses: ./.github/workflows/release-common.yaml
-        needs: ci
+        name: Publish
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Setup npm authentication
+              uses: actions/setup-node@v6
+              with:
+                  node-version: latest
+                  registry-url: https://registry.npmjs.org/
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Check out @zenfs/core
+              uses: actions/checkout@v5
+              with:
+                  repository: zen-fs/core
+                  path: core
+
+            - name: Link @zenfs/core
+              run: |
+                  mv core ../core
+                  cd ../core
+                  npm install
+                  npm run build
+                  cd -
+                  npm i --no-save ../core
+
+            - name: Build
+              run: npm run build
+
+            - name: Publish
+              run: npm publish --access=public --provenance ${{ github.event.release.prerelease && '--tag next' || '' }}
