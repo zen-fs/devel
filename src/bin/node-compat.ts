@@ -33,7 +33,7 @@ const cli = new Command('node-compat')
 	.option('--state <file>', 'Marks file', core.defaultMarksPath)
 	.addHelpText('after', `\nThe first clone used is saved to ${displayPath(configPath)}.`);
 
-const sinceOption = new Option('--since <version>', 'Released in this version or later, or unreleased').default('18');
+const sinceOption = new Option('--since <version>', 'Released in this version or later, or unreleased').default('4');
 
 interface Context {
 	node: core.NodeRepository;
@@ -97,7 +97,7 @@ cli.command('summary', { isDefault: true })
 		console.log(styleText('bold', 'ZenFS'.padEnd(9)), core.zenfs.version);
 		console.log(styleText('bold', 'Marks'.padEnd(9)), `${marks.size} in ${displayPath(cli.opts().state)}\n`);
 
-		console.log(styleText('bold', `PRs since ${since}`), styleText('dim', `(${prs.length})`));
+		console.log(styleText('bold', since == '4' ? `PRs` : `PRs since ${since}`), styleText('dim', `(${prs.length})`));
 		for (const semver of semvers) {
 			const group = counts[semver];
 			if (!group) continue;
