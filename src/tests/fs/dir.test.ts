@@ -77,6 +77,24 @@ suite('Dir', config('directories'), () => {
 		assert(testFiles.includes(dirents[1].name));
 	});
 
+	test('recursive', async () => {
+		fs.mkdirSync('dir-recursive/nested', { recursive: true });
+		fs.writeFileSync('dir-recursive/top.txt', '');
+		fs.writeFileSync('dir-recursive/nested/deep.txt', '');
+		const expected = ['nested', 'nested/deep.txt', 'top.txt'];
+		const relative = (dirent: Dirent) => (dirent.parentPath.endsWith('nested') ? 'nested/' : '') + dirent.name;
+
+		const dir = fs.opendirSync('dir-recursive', { recursive: true });
+		const names: string[] = [];
+		for (let dirent; (dirent = dir.readSync());) names.push(relative(dirent));
+		dir.closeSync();
+		assert.deepEqual(names.sort(), expected);
+
+		const asyncNames: string[] = [];
+		for await (const dirent of await fs.promises.opendir('dir-recursive', { recursive: true, bufferSize: 1 })) asyncNames.push(relative(dirent));
+		assert.deepEqual(asyncNames.sort(), expected);
+	});
+
 	test('read after directory is closed', config('async'), async () => {
 		const dir = fs.opendirSync(testDirPath);
 		await dir.close();

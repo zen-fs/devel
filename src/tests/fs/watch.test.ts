@@ -246,6 +246,55 @@ suite('Watch', config('watch'), () => {
 		assert(!events.some(filename => filename.includes('nested.txt')));
 	});
 
+	test('Ignored files do not emit events', async () => {
+		const ignoreDir = `${testDir}/ignore`;
+		await fs.promises.mkdir(ignoreDir);
+
+		const events: string[] = [];
+		const { promise, resolve } = Promise.withResolvers<void>();
+		using watcher = fs.watch(ignoreDir, { ignore: ['*.log', /skip/, filename => filename == 'function.txt'] }, (eventType, filename) => {
+			events.push(filename);
+			if (filename == 'kept.txt') resolve();
+		});
+
+		for (const name of ['a.log', 'skip.txt', 'function.txt', 'kept.txt']) await fs.promises.writeFile(`${ignoreDir}/${name}`, 'x');
+		await withTimeout(promise);
+
+		assert(events.every(filename => filename == 'kept.txt'));
+	});
+
+	test('Invalid ignore patterns are rejected', () => {
+		assert.throws(() => fs.watch(testDir, { ignore: '' }), { code: 'ERR_INVALID_ARG_VALUE' });
+		assert.throws(() => fs.watch(testDir, { ignore: 5 as any }), { code: 'ERR_INVALID_ARG_TYPE' });
+		assert.throws(() => fs.watch(testDir, { ignore: ['*.log', 5 as any] }), { code: 'ERR_INVALID_ARG_TYPE' });
+	});
+
+	test('Bursts of events are queued by promises.watch', async () => {
+		const burstDir = `${testDir}/burst`;
+		await fs.promises.mkdir(burstDir);
+
+		const watcher = fs.promises.watch(burstDir);
+		const first = watcher.next();
+		await new Promise(resolve => setTimeout(resolve, 20));
+		for (let i = 0; i < 3; i++) await fs.promises.writeFile(`${burstDir}/file${i}`, 'x');
+		await withTimeout(first);
+
+		const names = new Set<string>();
+		for (let i = 0; i < 2; i++) names.add((await withTimeout(watcher.next())).value!.filename!);
+		await watcher.return?.();
+		assert(names.size >= 1);
+	});
+
+	test('Invalid queue options are rejected by promises.watch', async () => {
+		const start = (options: object) => async () => {
+			const watcher = fs.promises.watch(testDir, options);
+			await watcher.next();
+		};
+		await assert.rejects(start({ overflow: 'throw' }), { code: 'ERR_INVALID_ARG_VALUE' });
+		await assert.rejects(start({ maxQueue: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
+		await assert.rejects(start({ maxQueue: 'x' }), { code: 'ERR_INVALID_ARG_TYPE' });
+	});
+
 	test('watch("/") receives events for files under root #293', async () => {
 		// Regression: emitChange previously exited its parent-walk before
 		// checking watchers.get('/'), so a watcher registered on '/' never fired.

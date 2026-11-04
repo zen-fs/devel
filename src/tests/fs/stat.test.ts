@@ -112,4 +112,36 @@ suite('Stats', () => {
 		assert(!stats.isSymbolicLink());
 		assert(stats instanceof fs.Stats);
 	});
+
+	test('Date properties are enumerable and stored when accessed', config('sync'), () => {
+		const stats = fs.statSync('/');
+		const enumerated: string[] = [];
+		for (const key in stats) enumerated.push(key);
+		for (const name of ['atime', 'mtime', 'ctime', 'birthtime']) assert(enumerated.includes(name));
+
+		assert(!Object.keys(stats).includes('atime'));
+		assert(stats.atime instanceof Date);
+		assert(Object.keys(stats).includes('atime'));
+
+		const atimeMs = stats.atimeMs;
+		stats.atime = new Date(0);
+		assert.equal(stats.atime.getTime(), 0);
+		assert.equal(stats.atimeMs, atimeMs);
+	});
+
+	test('stat and lstat can be aborted', config('async'), async () => {
+		const reason = new Error('reason');
+		const error = { name: 'AbortError', code: 'ABORT_ERR', cause: reason };
+		await assert.rejects(fs.promises.stat('/', { signal: AbortSignal.abort(reason) }), error);
+		await assert.rejects(fs.promises.lstat('/', { signal: AbortSignal.abort(reason) }), error);
+
+		const { promise, resolve } = Promise.withResolvers<unknown>();
+		fs.stat('/', { signal: AbortSignal.abort(reason) }, resolve);
+		assert.equal(((await promise) as Error).name, 'AbortError');
+
+		const controller = new AbortController();
+		const pending = fs.promises.stat('/', { signal: controller.signal });
+		controller.abort(reason);
+		await assert.rejects(pending, error);
+	});
 });

@@ -201,4 +201,65 @@ suite('Streams', config('streams'), () => {
 
 		assert.deepEqual(chunks, []);
 	});
+
+	const text = async (stream: AsyncIterable<string | Buffer>) => {
+		const chunks: Buffer[] = [];
+		for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+		return Buffer.concat(chunks).toString();
+	};
+
+	const isOpen = (fd: number) => {
+		try {
+			fs.fstatSync(fd);
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
+	test('createReadStream uses the fd option and closes it', async () => {
+		const fd = fs.openSync(testFilePath, 'r');
+		assert.equal(await text(fs.createReadStream(null as any, { fd })), testData);
+		await new Promise(resolve => setTimeout(resolve, 10));
+		assert(!isOpen(fd));
+	});
+
+	test('createReadStream leaves the fd open with autoClose false', async () => {
+		const fd = fs.openSync(testFilePath, 'r');
+		assert.equal(await text(fs.createReadStream(null as any, { fd, autoClose: false, start: 7 })), testData.slice(7));
+		await new Promise(resolve => setTimeout(resolve, 10));
+		assert(isOpen(fd));
+		fs.closeSync(fd);
+	});
+
+	test('createWriteStream uses the fd option', async () => {
+		const file = 'stream-write-fd.txt';
+		const fd = fs.openSync(file, 'w');
+		const stream = fs.createWriteStream(null as any, { fd });
+		await new Promise<void>((resolve, reject) => stream.end('written', (error?: Error | null) => (error ? reject(error) : resolve())));
+		await new Promise(resolve => setTimeout(resolve, 10));
+		assert.equal(fs.readFileSync(file, 'utf8'), 'written');
+		assert(!isOpen(fd));
+	});
+
+	test('createWriteStream uses the flags option', async () => {
+		const file = 'stream-append.txt';
+		fs.writeFileSync(file, 'x');
+		const stream = fs.createWriteStream(file, { flags: 'a' });
+		await new Promise(resolve => stream.end('y', resolve));
+		await new Promise(resolve => setTimeout(resolve, 10));
+		assert.equal(fs.readFileSync(file, 'utf8'), 'xy');
+	});
+
+	test('readableWebStream closes the handle with autoClose', async () => {
+		const handle = await fs.promises.open(testFilePath);
+		const chunks: Buffer[] = [];
+		for await (const chunk of handle.readableWebStream({ autoClose: true }) as AsyncIterable<Uint8Array>) chunks.push(Buffer.from(chunk));
+		assert.equal(Buffer.concat(chunks).toString(), testData);
+		assert.equal(handle.fd, -1);
+
+		const cancelled = await fs.promises.open(testFilePath);
+		await cancelled.readableWebStream({ autoClose: true }).cancel();
+		assert.equal(cancelled.fd, -1);
+	});
 });

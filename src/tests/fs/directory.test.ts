@@ -71,6 +71,14 @@ suite('Directories', config('directories'), () => {
 		assert.throws(() => fs.mkdirSync('/recursiveSF/A/B', { recursive: true }), { code: 'ENOTDIR', path: '/recursiveSF/A/B' });
 	});
 
+	test('rmdir with options and a callback', config('async'), async () => {
+		await fs.promises.mkdir('/rmdir-callback');
+		const { promise, resolve } = Promise.withResolvers<unknown>();
+		fs.rmdir('/rmdir-callback', {}, resolve);
+		assert.equal(await promise, null);
+		assert(!fs.existsSync('/rmdir-callback'));
+	});
+
 	test('rmdir (non-empty)', config('async'), async () => {
 		await fs.promises.mkdir('/rmdirTest');
 		await fs.promises.mkdir('/rmdirTest/rmdirTest2');

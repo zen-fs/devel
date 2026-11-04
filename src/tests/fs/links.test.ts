@@ -42,6 +42,30 @@ suite('Links', config('symlinks'), () => {
 		assert.throws(() => fs.symlinkSync(target, 'symlink-invalid.js', 'bogus' as any), TypeError);
 	});
 
+	test('readlink returns a string unless the encoding is buffer', async () => {
+		const link: string = fs.readlinkSync(symlink);
+		assert.equal(typeof link, 'string');
+		assert(Buffer.isBuffer(fs.readlinkSync(symlink, { encoding: 'buffer' })));
+
+		const { promise, resolve, reject } = Promise.withResolvers<unknown>();
+		fs.readlink(symlink, { encoding: 'buffer' }, (error, result) => (error ? reject(error) : resolve(result)));
+		assert(Buffer.isBuffer(await promise));
+	});
+
+	test('symlink onto an existing entry throws EEXIST for the link', async () => {
+		fs.symlinkSync('/does-not-exist', 'symlink-broken.js');
+
+		for (const existing of [target, symlink, 'symlink-broken.js']) {
+			const error = (thrown: any) =>
+				thrown.code == 'EEXIST' && thrown.syscall == 'symlink' && thrown.path == 'other' && thrown.dest.endsWith(existing);
+			assert.throws(() => fs.symlinkSync('other', existing), error);
+			await assert.rejects(fs.promises.symlink('other', existing), error);
+		}
+
+		assert.equal(fs.readlinkSync('symlink-broken.js', 'utf8'), '/does-not-exist');
+		fs.unlinkSync('symlink-broken.js');
+	});
+
 	test('lstat file inside symlinked directory #241', async () => {
 		await fs.promises.mkdir('/a');
 		await fs.promises.writeFile('/a/hello.txt', 'hello world');
