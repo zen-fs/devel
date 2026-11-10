@@ -86,12 +86,5 @@
 		"prettier": "^3.2.5",
 		"typescript": "^6.0.0"
 	},
-	"prettier": {
-		"singleQuote": true,
-		"useTabs": true,
-		"tabWidth": 4,
-		"printWidth": 150,
-		"arrowParens": "avoid",
-		"experimentalOperatorPosition": "start"
-	}
+	"prettier": "./dist/prettier.js"
 }
