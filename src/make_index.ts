@@ -61,7 +61,7 @@ export default function makeIndex(root: string = '.', options: MakeIndexOptions 
 				for (const file of readdirSync(path)) computeEntries(join(path, file));
 			}
 		} catch (e) {
-			const error = e instanceof Error ? e : new Error(String(e));
+			const error = Error.isError(e) ? e : new Error(String(e));
 			if (!options.onError) throw error;
 			options.onError(path, error);
 		}

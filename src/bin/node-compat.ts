@@ -59,7 +59,7 @@ function load(createMarks: boolean = false): Context {
 	try {
 		node = new core.NodeRepository({ repo, ref: options.ref });
 	} catch (error) {
-		return cli.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+		return cli.error(`error: ${Error.isError(error) ? error.message : String(error)}`);
 	}
 
 	if (node.path != saved && (!saved || options.persist)) {
