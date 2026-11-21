@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import type * as changelog from './changelog.js';
 import { parseSubject, type ApiHistory, type Commit } from './commits.js';
-import { compareVersions } from './versions.js';
+import * as semver from 'semver';
 
 export interface AffectedApis {
 	added: string[];
@@ -89,7 +89,7 @@ export class PR {
 	addRelease(entry: changelog.Entry): void {
 		if (!this.releases.some(release => release.version == entry.release.version)) {
 			this.releases.push(entry.release);
-			this.releases.sort((left, right) => compareVersions(left.version, right.version));
+			this.releases.sort((left, right) => semver.compare(left.version, right.version));
 		}
 
 		if (this.semver == 'unreleased' || entry.semver == 'major' || (entry.semver == 'minor' && this.semver == 'patch')) this.semver = entry.semver;

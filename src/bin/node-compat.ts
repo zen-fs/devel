@@ -4,6 +4,7 @@ import { Argument, Command, Option } from 'commander';
 import { existsSync } from 'node:fs';
 import { text } from 'node:stream/consumers';
 import { styleText } from 'node:util';
+import * as semver from 'semver';
 import { configPath, saveRepo, savedRepo } from '../node_compat/config.js';
 import * as core from '../node_compat/index.js';
 import {
@@ -14,6 +15,7 @@ import {
 	parseList,
 	parsePositiveInteger,
 	parseRegex,
+	parseVersion,
 	printFields,
 	printPRTable,
 	semverStyles,
@@ -33,7 +35,7 @@ const cli = new Command('node-compat')
 	.option('--state <file>', 'Marks file', core.defaultMarksPath)
 	.addHelpText('after', `\nThe first clone used is saved to ${displayPath(configPath)}.`);
 
-const sinceOption = new Option('--since <version>', 'Released in this version or later, or unreleased').default('4');
+const sinceOption = new Option('--since <version>', 'Released in this version or later, or unreleased').argParser(parseVersion).default('4');
 
 interface Context {
 	node: core.NodeRepository;
@@ -70,8 +72,10 @@ function load(createMarks: boolean = false): Context {
 	return { node, marks, analysis: new core.Analysis(node, marks) };
 }
 
-function sinceFilter(node: core.NodeRepository, since: string): core.PRFilter {
-	return { since, landedSince: node.releaseDate(since) };
+function sinceFilter(node: core.NodeRepository, since: string, includePrerelease: boolean = true): core.PRFilter {
+	const opt: semver.RangeOptions = { includePrerelease };
+	const version = semver.minVersion(since, opt)?.version ?? cli.error(`error: No version matches ${since}.`);
+	return { since: version, landedSince: node.releaseDate(version) };
 }
 
 cli.command('summary', { isDefault: true })
@@ -98,15 +102,15 @@ cli.command('summary', { isDefault: true })
 		console.log(styleText('bold', 'Marks'.padEnd(9)), `${marks.size} in ${displayPath(cli.opts().state)}\n`);
 
 		console.log(styleText('bold', since == '4' ? 'PRs' : `PRs since ${since}`), styleText('dim', `(${prs.length})`));
-		for (const semver of semvers) {
-			const group = counts[semver];
+		for (const bump of semvers) {
+			const group = counts[bump];
 			if (!group) continue;
 			const total = Object.values(group).reduce((sum, count) => sum + count, 0);
 			const breakdown = statuses
 				.filter(status => group[status])
 				.map(status => styleText(statusStyles[status], `${group[status]} ${status}`))
 				.join(', ');
-			console.log(' ', pad(styleText(semverStyles[semver], semver), 11), String(total).padStart(4), ' ', breakdown);
+			console.log(' ', pad(styleText(semverStyles[bump], bump), 11), String(total).padStart(4), ' ', breakdown);
 		}
 
 		const compatPercent = Math.floor((present / apis.length) * 100);

@@ -2,6 +2,7 @@
 import { InvalidArgumentError } from 'commander';
 import { homedir } from 'node:os';
 import { relative } from 'node:path';
+import * as semver from 'semver';
 import { stripVTControlCharacters, styleText, type InspectColor } from 'node:util';
 import type { PRStatus, Status } from './analysis.js';
 import type { PR } from './pr.js';
@@ -37,6 +38,11 @@ export function parseIntegers(value: string, previous: number[] | undefined): nu
 	const numbers = parseList()(value, undefined).map(Number);
 	if (numbers.some(number => !Number.isSafeInteger(number))) throw new InvalidArgumentError('Expected integers.');
 	return [...(previous ?? []), ...numbers];
+}
+
+export function parseVersion(value: string): string {
+	if (!semver.validRange(value)) throw new InvalidArgumentError('Expected a version.');
+	return value;
 }
 
 export function parsePositiveInteger(value: string): number {

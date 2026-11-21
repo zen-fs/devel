@@ -4,7 +4,7 @@ import { matchesSubsystem, readApiHistory, readCommits } from './commits.js';
 import * as docs from './docs.js';
 import { Repository } from './git.js';
 import { PR } from './pr.js';
-import { compareVersions, isVersion, parseVersion } from './versions.js';
+import * as semver from 'semver';
 
 export interface NodeRepositoryInit {
 	/** Path to a Node.js clone */
@@ -70,7 +70,7 @@ export class NodeRepository extends Repository {
 			}
 		}
 
-		this.releases = [...releases.values()].sort((left, right) => compareVersions(right.version, left.version));
+		this.releases = [...releases.values()].sort((left, right) => semver.rcompare(left.version, right.version));
 		for (const release of this.releases.toReversed()) {
 			this.releaseDates.set(release.version, release.date);
 			if (!this.lineStarts.has(release.line)) this.lineStarts.set(release.line, release.date);
@@ -87,14 +87,15 @@ export class NodeRepository extends Repository {
 	 * @param versions Versions, optionally prefixed with `v`
 	 */
 	releaseIncludes(target: string, versions: string[]): boolean {
-		const [line] = parseVersion(target);
+		const line = semver.major(target);
 		const lineStart = this.lineStarts.get(line);
-		return versions.some(version => {
-			if (!isVersion(version)) return false;
-			const [major] = parseVersion(version);
-			if (major == line) return compareVersions(version, target) <= 0;
+		return versions.some(input => {
+			const version = semver.valid(input);
+			if (!version) return false;
+			const major = semver.major(version);
+			if (major == line) return semver.lte(version, target);
 			if (major > line || !lineStart) return false;
-			const date = this.releaseDates.get(version.replace(/^v/, ''));
+			const date = this.releaseDates.get(version);
 			return !date || date <= lineStart;
 		});
 	}
@@ -103,7 +104,7 @@ export class NodeRepository extends Repository {
 	 * Date of the first release at or after a version.
 	 */
 	releaseDate(version: string): string | undefined {
-		return this.releases.filter(release => compareVersions(release.version, version) >= 0).at(-1)?.date;
+		return this.releases.filter(release => semver.gte(release.version, version)).at(-1)?.date;
 	}
 
 	/**

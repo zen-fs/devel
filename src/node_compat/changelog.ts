@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import * as semver from 'semver';
 import type { Repository } from './git.js';
-import { parseVersion } from './versions.js';
 
 export type Semver = 'major' | 'minor' | 'patch';
 
@@ -24,7 +24,7 @@ export interface Entry {
 	release: Release;
 }
 
-const releaseHeading = /^## (?<date>\d{4}-\d{2}-\d{2}), Version (?<version>\d+\.\d+\.\d+)/;
+const releaseHeading = /^## (?<date>\d{4}-\d{2}-\d{2}), Version (?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/;
 const changelogLine =
 	/^\* \\\[\[`(?<commit>[0-9a-f]+)`\]\([^)]*\)\] - (?<rest>.+?)\s*\[#(?<pr>\d+)\]\(https:\/\/github\.com\/nodejs\/node\/pull\/\d+\)\s*$/;
 
@@ -39,7 +39,7 @@ export function parse(text: string): Entry[] {
 		const heading = releaseHeading.exec(line);
 		if (heading?.groups) {
 			const { date, version } = heading.groups;
-			release = { version, line: parseVersion(version)[0], date };
+			release = { version, line: semver.major(version), date };
 			continue;
 		}
 
@@ -47,10 +47,10 @@ export function parse(text: string): Entry[] {
 		if (!release || !match?.groups) continue;
 
 		let rest = match.groups.rest;
-		let semver: Semver = 'patch';
+		let bump: Semver = 'patch';
 		for (let tag; (tag = /^\*\*\((?<tag>[^)]+)\)\*\*\s*/.exec(rest)); rest = rest.slice(tag[0].length)) {
-			if (tag.groups?.tag == 'SEMVER-MAJOR') semver = 'major';
-			if (tag.groups?.tag == 'SEMVER-MINOR' && semver != 'major') semver = 'minor';
+			if (tag.groups?.tag == 'SEMVER-MAJOR') bump = 'major';
+			if (tag.groups?.tag == 'SEMVER-MINOR' && bump != 'major') bump = 'minor';
 		}
 
 		const revert = /^_\*\*Revert\*\*_ "/.test(rest);
@@ -74,7 +74,7 @@ export function parse(text: string): Entry[] {
 			subsystems: subject.groups.subsystems.split(',').map(name => name.trim()),
 			title,
 			author,
-			semver,
+			semver: bump,
 			revert,
 			release,
 		});

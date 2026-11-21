@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
+import * as semver from 'semver';
 import type * as changelog from './changelog.js';
 import type { Api } from './docs.js';
 import type { NodeRepository } from './node.js';
 import type { PR } from './pr.js';
 import type { MarkEntry, Marks } from './state.js';
-import { compareVersions, isVersion } from './versions.js';
 import * as zenfs from './zenfs.js';
 
 /**
@@ -78,7 +78,7 @@ export class Analysis {
 		const { since, landedSince, grep } = filter;
 		return [...prs].filter(({ pr, status }) => {
 			if (filter.unreleased && pr.releases.length) return false;
-			if (since && pr.releases.length && !pr.releases.some(release => compareVersions(release.version, since) >= 0)) return false;
+			if (since && pr.releases.length && !pr.releases.some(release => semver.gte(release.version, since))) return false;
 			if (landedSince && !pr.releases.length && (pr.commits[0]?.date ?? '') < landedSince) return false;
 			if (filter.semver && !filter.semver.includes(pr.semver)) return false;
 			if (filter.status && !filter.status.includes(status)) return false;
@@ -107,7 +107,7 @@ export class Analysis {
 			),
 		);
 		const apis = [...this.apis.values()].filter(({ api }) => {
-			const added = api.added.filter(isVersion);
+			const added = api.added.filter(version => semver.valid(version));
 			return (!added.length || this.node.releaseIncludes(release.version, added)) && !this.node.releaseIncludes(release.version, api.removed);
 		});
 		const pending = prs.filter(({ status }) => status == 'pending');
@@ -121,7 +121,7 @@ export class Analysis {
 	 */
 	lastComplete(latest?: string): Coverage | undefined {
 		for (const { version } of this.node.releases) {
-			if (latest && compareVersions(version, latest) > 0) continue;
+			if (latest && semver.gt(version, latest)) continue;
 			const coverage = this.coverage(version);
 			if (coverage?.complete) return coverage;
 		}

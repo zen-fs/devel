@@ -7,5 +7,4 @@ export * from './git.js';
 export * from './node.js';
 export * from './pr.js';
 export * from './state.js';
-export * from './versions.js';
 export * as zenfs from './zenfs.js';

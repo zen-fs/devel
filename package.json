@@ -66,6 +66,7 @@
 		"commander": "^15.0.0",
 		"globals": "^17.3.0",
 		"kerium": "^1.5.0",
+		"semver": "^7.8.6",
 		"typescript-eslint": "^8.58.0",
 		"utilium": "^3.11.0"
 	},
@@ -81,7 +82,8 @@
 	"devDependencies": {
 		"@commander-js/extra-typings": "^15.0.0",
 		"@types/node": "^26.0.0",
-		"@zenfs/core": "^2.8.0",
+		"@types/semver": "^7.8.0",
+		"@zenfs/core": "^2.9.0",
 		"eslint": "^10.1.0",
 		"prettier": "^3.2.5",
 		"typescript": "^6.0.0"
